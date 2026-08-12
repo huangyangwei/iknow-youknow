@@ -1,0 +1,14 @@
+CREATE TABLE app_user (id UUID PRIMARY KEY, username VARCHAR(80) UNIQUE NOT NULL, password_hash VARCHAR(255) NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE role (id UUID PRIMARY KEY, code VARCHAR(40) UNIQUE NOT NULL);
+CREATE TABLE user_role (user_id UUID NOT NULL REFERENCES app_user(id), role_id UUID NOT NULL REFERENCES role(id), PRIMARY KEY(user_id, role_id));
+CREATE TABLE knowledge_document (id UUID PRIMARY KEY, title VARCHAR(255) NOT NULL, status VARCHAR(24) NOT NULL, current_revision BIGINT NOT NULL DEFAULT 0, version BIGINT NOT NULL DEFAULT 0, created_at TIMESTAMP WITH TIME ZONE NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE knowledge_revision (id UUID PRIMARY KEY, document_id UUID NOT NULL REFERENCES knowledge_document(id), revision BIGINT NOT NULL, content CLOB NOT NULL, published BOOLEAN NOT NULL DEFAULT FALSE, created_at TIMESTAMP WITH TIME ZONE NOT NULL, UNIQUE(document_id, revision));
+CREATE TABLE taxonomy_tag (id UUID PRIMARY KEY, name VARCHAR(120) UNIQUE NOT NULL, parent_id UUID REFERENCES taxonomy_tag(id));
+CREATE TABLE document_tag (document_id UUID NOT NULL REFERENCES knowledge_document(id), tag_id UUID NOT NULL REFERENCES taxonomy_tag(id), PRIMARY KEY(document_id, tag_id));
+CREATE TABLE job_task (id UUID PRIMARY KEY, task_type VARCHAR(40) NOT NULL, status VARCHAR(24) NOT NULL, document_id UUID REFERENCES knowledge_document(id), target_revision BIGINT, idempotency_key VARCHAR(120) UNIQUE NOT NULL, created_at TIMESTAMP WITH TIME ZONE NOT NULL, updated_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE conversation (id UUID PRIMARY KEY, user_id UUID NOT NULL REFERENCES app_user(id), title VARCHAR(255), created_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE conversation_message (id UUID PRIMARY KEY, conversation_id UUID NOT NULL REFERENCES conversation(id), role VARCHAR(20) NOT NULL, content CLOB NOT NULL, evidence_snapshot CLOB, confidence DECIMAL(4,3), created_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE feedback (id UUID PRIMARY KEY, message_id UUID NOT NULL REFERENCES conversation_message(id), rating SMALLINT NOT NULL, comment VARCHAR(1000), created_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE TABLE audit_event (id UUID PRIMARY KEY, actor VARCHAR(80), action VARCHAR(80) NOT NULL, resource_type VARCHAR(80), resource_id VARCHAR(80), created_at TIMESTAMP WITH TIME ZONE NOT NULL);
+CREATE INDEX idx_knowledge_revision_published ON knowledge_revision(published, document_id, revision);
+CREATE INDEX idx_job_task_status ON job_task(status, created_at);
