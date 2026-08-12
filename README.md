@@ -1,9 +1,20 @@
-# iknow-youknow
+# iKnow · youKnow
 
-Iteration 0 backend skeleton for a knowledge-base RAG service. Requires Java 21 and Maven.
+Vue 3 + TypeScript + Vite MVP for a knowledge-base Q&A system.
+
+## Run
 
 ```bash
-mvn spring-boot:run
+npm install
+npm run dev
 ```
 
-HTTP Basic development users: `user/changeit` and `admin/changeit`. The public liveness probe is `/actuator/health`; API contracts are under `/api/v1`. The default data store is H2 for the MVP; production should use PostgreSQL with pgvector and replace `DeterministicModelAdapter` with a Spring AI 2.x provider adapter.
+The Vite dev server proxies `/api` to `http://localhost:8080`; production deployments should configure the API gateway accordingly.
+
+## API conventions
+
+- REST requests target `/api/v1` with an optional Bearer session token.
+- Chat uses `POST /api/v1/chat/stream` and consumes `token`, `citation`, `done`, and `error` SSE events.
+- The current conversation cursor is sent on subsequent requests; stopping uses `AbortController` and can reconnect with that cursor.
+
+No source prototypes were provided, so this implementation deliberately supplies a functional responsive information architecture rather than pixel-level visual reproduction.
