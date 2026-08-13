@@ -3,4 +3,6 @@ import java.time.Instant; import java.util.Map; import org.springframework.http.
 @RestControllerAdvice public class ApiExceptionHandler {
  @ExceptionHandler(MethodArgumentNotValidException.class) ResponseEntity<ApiError> validation(MethodArgumentNotValidException e){ var f=e.getBindingResult().getFieldErrors().stream().collect(java.util.stream.Collectors.toMap(x->x.getField(),x->x.getDefaultMessage(),(a,b)->a)); return ResponseEntity.badRequest().body(new ApiError("VALIDATION_ERROR","Request validation failed",Instant.now(),f)); }
  @ExceptionHandler(IllegalArgumentException.class) ResponseEntity<ApiError> badRequest(IllegalArgumentException e){return ResponseEntity.badRequest().body(new ApiError("BAD_REQUEST",e.getMessage(),Instant.now(),Map.of()));}
+ @ExceptionHandler(ConflictException.class) ResponseEntity<ApiError> conflict(ConflictException e){return ResponseEntity.status(HttpStatus.CONFLICT).body(new ApiError("CONFLICT",e.getMessage(),Instant.now(),Map.of()));}
+ @ExceptionHandler(SecurityException.class) ResponseEntity<ApiError> forbidden(SecurityException e){return ResponseEntity.status(HttpStatus.FORBIDDEN).body(new ApiError("FORBIDDEN",e.getMessage(),Instant.now(),Map.of()));}
 }
