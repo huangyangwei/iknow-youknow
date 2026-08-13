@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+
+  <parent>
+    <groupId>org.springframework.boot</groupId>
+    <artifactId>spring-boot-starter-parent</artifactId>
+    <version>4.0.7</version>
+    <relativePath/>
+  </parent>
+
+  <groupId>com.huangyangwei</groupId>
+  <artifactId>m0-spike1-mbplus</artifactId>
+  <version>0.1.0-SNAPSHOT</version>
+  <packaging>pom</packaging>
+  <name>M0 Spike1 - Spring Boot 4 + MyBatis-Plus</name>
+  <description>HYW-19 Spike ①: mybatis-plus-spring-boot4-starter under Spring Boot 4.0.x</description>
+
+  <modules>
+    <module>iknow-common</module>
+    <module>iknow-server</module>
+  </modules>
+
+  <properties>
+    <java.version>21</java.version>
+    <mybatis-plus.version>3.5.17</mybatis-plus.version>
+    <zonky.version>2.2.2</zonky.version>
+  </properties>
+
+  <dependencyManagement>
+    <dependencies>
+      <dependency>
+        <groupId>com.baomidou</groupId>
+        <artifactId>mybatis-plus-spring-boot4-starter</artifactId>
+        <version>${mybatis-plus.version}</version>
+      </dependency>
+      <!-- 3.5.9+ 分页/乐观锁等 JSqlParser 相关拦截器拆分为独立 artifact，需显式引入 -->
+      <dependency>
+        <groupId>com.baomidou</groupId>
+        <artifactId>mybatis-plus-jsqlparser</artifactId>
+        <version>${mybatis-plus.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>io.zonky.test</groupId>
+        <artifactId>embedded-postgres</artifactId>
+        <version>${zonky.version}</version>
+      </dependency>
+    </dependencies>
+  </dependencyManagement>
+</project>
