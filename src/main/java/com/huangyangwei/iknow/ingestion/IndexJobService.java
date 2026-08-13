@@ -1,10 +1,10 @@
 package com.huangyangwei.iknow.ingestion;
 
-import com.huangyangwei.iknow.common.ConflictException; import java.sql.ResultSet; import java.time.Instant; import java.util.UUID; import org.springframework.jdbc.core.JdbcTemplate; import org.springframework.stereotype.Service; import org.springframework.transaction.annotation.Propagation; import org.springframework.transaction.annotation.Transactional;
+import com.huangyangwei.iknow.common.ConflictException; import java.sql.ResultSet; import java.time.Instant; import java.util.UUID; import org.springframework.jdbc.core.JdbcTemplate; import org.springframework.stereotype.Service;
 @Service public class IndexJobService {
  private final JdbcTemplate jdbc; public IndexJobService(JdbcTemplate jdbc){this.jdbc=jdbc;}
- /** A separate transaction makes PostgreSQL's ON CONFLICT replay safe before revision state is touched. */
- @Transactional(propagation=Propagation.REQUIRES_NEW) public Reservation reserve(UUID documentId,long revision,Operation operation,String key){
+ /** Called within the revision transaction: reservation and state switch either commit or roll back together. */
+ public Reservation reserve(UUID documentId,long revision,Operation operation,String key){
   var job=new Job(UUID.randomUUID(),documentId,revision,operation,"QUEUED",Instant.now()); int inserted=jdbc.update("insert into job_task(id,task_type,operation,status,document_id,target_revision,idempotency_key,created_at,updated_at) values(?,?,?,?,?,?,?,?,?) on conflict (document_id,target_revision,operation,idempotency_key) do nothing",job.id(),"INDEX",operation.name(),job.status(),documentId,revision,key,job.createdAt(),job.createdAt());
   return inserted==1?new Reservation(job,true):new Reservation(find(documentId,revision,operation,key),false);
  }
