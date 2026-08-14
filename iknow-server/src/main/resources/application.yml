@@ -1,0 +1,48 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: iknow-youknow
+  # 默认 dev：启用嵌入式 PostgreSQL（见 config/EmbeddedPostgresConfig），无需外部数据库。
+  # 生产/外部数据库用 --spring.profiles.active=prod 覆盖。
+  profiles:
+    default: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/iknow_youknow
+    username: postgres
+    password: postgres
+    driver-class-name: org.postgresql.Driver
+  flyway:
+    enabled: true
+    locations: classpath:db/migration
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+mybatis-plus:
+  configuration:
+    map-underscore-to-camel-case: true
+  global-config:
+    banner: false
+    db-config:
+      id-type: assign_id
+
+iknow:
+  jwt:
+    # 生产环境必须更换（HS256 密钥长度须 ≥ 32 字节）
+    secret: iknow-youknow-dev-secret-change-me-in-prod-0123456789
+    expire-seconds: 7200
+  cache:
+    l1-ttl: 5m
+    l1-max-size: 1000
+    l2-ttl: 30m
+  nacos:
+    enabled: false
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
