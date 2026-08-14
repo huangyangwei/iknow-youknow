@@ -1,3 +1,0 @@
-package com.huangyangwei.iknow.feedback;
-import jakarta.validation.Valid; import jakarta.validation.constraints.*; import java.time.Instant; import java.util.*; import org.springframework.web.bind.annotation.*;
-@RestController @RequestMapping("/api/v1/feedback") public class FeedbackController { private final List<Feedback> feedback=Collections.synchronizedList(new ArrayList<>()); @PostMapping public Feedback create(@RequestBody @Valid Request r){var f=new Feedback(UUID.randomUUID(),r.messageId(),r.rating(),r.comment(),Instant.now());feedback.add(f);return f;} public record Request(@NotNull UUID messageId,@Min(1) @Max(5) int rating,@Size(max=1000) String comment){} public record Feedback(UUID id,UUID messageId,int rating,String comment,Instant createdAt){} }
