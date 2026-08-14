@@ -138,6 +138,8 @@ export interface ChatMessage {
   sources?: ChatSource[]
   createdAt?: string
   isStreaming?: boolean
+  /** 流式中断/失败后是否可重试 */
+  retryable?: boolean
 }
 
 export interface ChatSession {
@@ -152,6 +154,20 @@ export interface ModelOption {
   name: string
   desc: string
   dot: string
+}
+
+/** GET /api/models 返回的可用模型信息 */
+export interface ModelInfo {
+  key: string
+  name: string
+  desc?: string
+  dot?: string
+}
+
+/** 多轮追问上下文：随 ask 一起发送的最近会话消息 */
+export interface ChatContextMessage {
+  role: 'user' | 'assistant'
+  content: string
 }
 
 export type FeedbackType = 'like' | 'dislike' | 'correction' | 'suggestion'

@@ -8,12 +8,12 @@ import {
   MOCK_CHAT_SESSIONS,
   MOCK_HOT_SEARCH,
   MOCK_KNOWLEDGE,
+  MOCK_MODELS,
   MOCK_OVERVIEW,
   MOCK_QUERY_TREND,
   MOCK_TAGS,
   MOCK_USERS,
   MOCK_VERSIONS,
-  mockAnswer,
   searchMockKnowledge,
 } from './data'
 
@@ -179,13 +179,17 @@ export function setupMock(): void {
     return ok(MOCK_CHAT_MESSAGES[id] ?? [])
   })
 
-  mock.onPost('/api/chat/ask').reply((config) => {
-    const body = JSON.parse(config.data ?? '{}') as { sessionId?: number; question: string; model: string }
-    const modelName = body.model
-    const answer = mockAnswer(body.question, modelName)
-    answer.sessionId = body.sessionId ?? 1
-    return ok(answer)
+  mock.onDelete(/\/api\/chat\/sessions\/\d+$/).reply((config) => {
+    const id = atIndex(config.url ?? '', 1)
+    const idx = MOCK_CHAT_SESSIONS.findIndex((s) => s.id === id)
+    if (idx === -1) return fail(404, 4001, '会话不存在')
+    MOCK_CHAT_SESSIONS.splice(idx, 1)
+    delete MOCK_CHAT_MESSAGES[id]
+    return ok(true)
   })
+
+  // ===== 模型 =====
+  mock.onGet('/api/models').reply(() => ok(MOCK_MODELS))
 
   // ===== 数据仪表盘 =====
   mock.onGet('/api/analytics/overview').reply(() => ok(MOCK_OVERVIEW))
