@@ -21,7 +21,7 @@ const selectedKeys = ref<number[]>([])
 
 const canCreate = auth.hasPermission('knowledge:create') || auth.hasPermission('knowledge:manage')
 const canEdit = auth.hasPermission('knowledge:update') || auth.hasPermission('knowledge:manage')
-const canDelete = auth.hasPermission('knowledge:delete')
+const canDelete = auth.hasPermission('knowledge:delete') || auth.hasPermission('knowledge:manage')
 
 onMounted(async () => {
   await knowledge.loadOptions().catch(() => {})

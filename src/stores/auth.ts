@@ -58,6 +58,7 @@ export const useAuthStore = defineStore('auth', () => {
     roleText,
     isAdmin,
     hasPermission,
+    syncToken,
     login,
     fetchMe,
     signOut,

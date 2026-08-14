@@ -19,9 +19,19 @@ export function formatCount(value?: number): string {
   return value >= 1000 ? `${(value / 1000).toFixed(1).replace(/\.0$/, '')}k` : String(value)
 }
 
+/** 先对原文做 HTML 转义，再包 <mark>，防止标题/摘录中的富文本触发存储型 XSS */
 export function highlightText(text: string, keyword: string): string {
   const kw = keyword.trim()
-  if (!kw) return text
-  const escaped = kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-  return text.replace(new RegExp(`(${escaped})`, 'gi'), '<mark>$1</mark>')
+  if (!kw) return escapeHtml(text)
+  const escapedKw = escapeHtml(kw).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return escapeHtml(text).replace(new RegExp(`(${escapedKw})`, 'gi'), '<mark>$1</mark>')
+}
+
+function escapeHtml(value: string): string {
+  return value
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
 }

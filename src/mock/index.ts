@@ -158,8 +158,7 @@ export function setupMock(): void {
   })
 
   mock.onPost(/\/api\/knowledge\/\d+\/rollback$/).reply((config) => {
-    const parts = config.url?.split('/').filter(Boolean) ?? []
-    const id = Number(parts[parts.length - 3])
+    const id = atIndex(config.url ?? '', 2)
     const body = JSON.parse(config.data ?? '{}') as { versionNo?: number }
     const item = MOCK_KNOWLEDGE.find((k) => k.id === id)
     if (!item) return fail(404, 3000, '知识条目不存在')
