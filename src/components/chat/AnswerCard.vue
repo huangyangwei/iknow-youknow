@@ -2,9 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import { ElMessage } from 'element-plus'
 import { useRouter } from 'vue-router'
+import { feedbackApi } from '@/api/feedback'
 import { useChatStore } from '@/stores/chat'
 import { renderMarkdown } from '@/utils/markdown'
-import type { ChatMessage } from '@/types/api'
+import type { ChatMessage, FeedbackType } from '@/types/api'
 
 defineOptions({ name: 'AnswerCard' })
 
@@ -39,6 +40,9 @@ const modelDotClass = computed(() => chat.models.find((m) => m.name === props.me
 
 const liked = ref(false)
 const disliked = ref(false)
+const feedbackDialog = ref(false)
+const feedbackKind = ref<FeedbackType>('correction')
+const feedbackContent = ref('')
 
 watch(
   () => props.message.id,
@@ -48,20 +52,68 @@ watch(
   },
 )
 
-function toggleLike(): void {
-  if (disliked.value) disliked.value = false
-  liked.value = !liked.value
-  ElMessage.success(liked.value ? '已记录「有帮助」' : '已取消')
+/** 定位该答案对应的用户提问（用于反馈记录上下文） */
+function findQuestion(): string {
+  const idx = chat.messages.findIndex((m) => m.id === props.message.id)
+  for (let i = idx - 1; i >= 0; i--) {
+    if (chat.messages[i].role === 'user') return chat.messages[i].content
+  }
+  return ''
 }
 
-function toggleDislike(): void {
-  if (liked.value) liked.value = false
-  disliked.value = !disliked.value
-  ElMessage.success(disliked.value ? '已记录「无帮助」' : '已取消')
+async function submitFeedback(type: FeedbackType, content?: string): Promise<void> {
+  const firstSource = props.message.sources?.[0]
+  try {
+    await feedbackApi.create({
+      type,
+      sourceType: 'answer',
+      sourceId: firstSource?.knowledgeId,
+      sourceTitle: firstSource?.title,
+      sessionId: props.message.sessionId ?? chat.activeSessionId ?? undefined,
+      question: findQuestion() || undefined,
+      content: content?.trim() || undefined,
+    })
+    const successText: Record<FeedbackType, string> = {
+      like: '已记录「有帮助」，感谢反馈',
+      dislike: '已记录「没帮助」，我们将持续优化',
+      correction: '纠错反馈已提交，感谢支持',
+      suggestion: '补充建议已提交，感谢支持',
+    }
+    ElMessage.success(successText[type])
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '反馈提交失败，请稍后重试')
+  }
 }
 
-function submitFeedback(kind: 'correction' | 'suggestion'): void {
-  ElMessage.success(kind === 'correction' ? '纠错建议已提交' : '补充建议已提交')
+async function toggleLike(): Promise<void> {
+  if (liked.value) {
+    liked.value = false
+    return
+  }
+  disliked.value = false
+  liked.value = true
+  await submitFeedback('like')
+}
+
+async function toggleDislike(): Promise<void> {
+  if (disliked.value) {
+    disliked.value = false
+    return
+  }
+  liked.value = false
+  disliked.value = true
+  await submitFeedback('dislike')
+}
+
+function openFeedbackDialog(kind: 'correction' | 'suggestion'): void {
+  feedbackKind.value = kind
+  feedbackContent.value = ''
+  feedbackDialog.value = true
+}
+
+async function confirmFeedback(): Promise<void> {
+  await submitFeedback(feedbackKind.value, feedbackContent.value)
+  feedbackDialog.value = false
 }
 
 function openSource(knowledgeId: number): void {
@@ -114,11 +166,31 @@ function openSource(knowledgeId: number): void {
 
     <div class="answer-actions">
       <button type="button" class="btn-action" :class="{ liked }" @click="toggleLike">👍 有帮助</button>
-      <button type="button" class="btn-action" :class="{ disliked }" @click="toggleDislike">👎 无帮助</button>
-      <button type="button" class="btn-action" @click="submitFeedback('correction')">✏️ 纠错</button>
-      <button type="button" class="btn-action" @click="submitFeedback('suggestion')">💡 补充建议</button>
+      <button type="button" class="btn-action" :class="{ disliked }" @click="toggleDislike">👎 没帮助</button>
+      <button type="button" class="btn-action" @click="openFeedbackDialog('correction')">✏️ 纠错</button>
+      <button type="button" class="btn-action" @click="openFeedbackDialog('suggestion')">💡 补充建议</button>
       <button v-if="message.retryable" type="button" class="btn-action retry" @click="emit('retry', message.id)">🔄 重试</button>
     </div>
+
+    <el-dialog
+      v-model="feedbackDialog"
+      :title="feedbackKind === 'correction' ? '内容纠错' : '补充建议'"
+      width="min(480px, calc(100vw - 40px))"
+      append-to-body
+    >
+      <el-input
+        v-model="feedbackContent"
+        type="textarea"
+        :rows="4"
+        :placeholder="feedbackKind === 'correction' ? '请描述答案中的错误内容或给出修正建议…' : '请描述需要补充的内容…'"
+      />
+      <template #footer>
+        <el-button @click="feedbackDialog = false">取消</el-button>
+        <el-button type="primary" :disabled="!feedbackContent.trim()" @click="confirmFeedback">
+          提交反馈
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

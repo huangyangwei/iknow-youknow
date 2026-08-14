@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import type { FeedbackType } from '@/types/api'
 
 defineOptions({ name: 'FeedbackActions' })
@@ -7,6 +7,7 @@ defineOptions({ name: 'FeedbackActions' })
 const props = defineProps<{
   likeCount?: number
   liked?: boolean
+  disliked?: boolean
   viewCount?: number
 }>()
 
@@ -15,13 +16,37 @@ const emit = defineEmits<{
 }>()
 
 const liked = ref(props.liked ?? false)
+const disliked = ref(props.disliked ?? false)
 const showDialog = ref(false)
 const feedbackType = ref<FeedbackType>('correction')
 const feedbackContent = ref('')
 
+watch(
+  () => [props.liked, props.disliked],
+  ([l, d]) => {
+    liked.value = l ?? false
+    disliked.value = d ?? false
+  },
+)
+
 function toggleLike() {
-  liked.value = !liked.value
-  emit('feedback', liked.value ? 'like' : 'dislike')
+  if (liked.value) {
+    liked.value = false
+    return
+  }
+  if (disliked.value) disliked.value = false
+  liked.value = true
+  emit('feedback', 'like')
+}
+
+function toggleDislike() {
+  if (disliked.value) {
+    disliked.value = false
+    return
+  }
+  if (liked.value) liked.value = false
+  disliked.value = true
+  emit('feedback', 'dislike')
 }
 
 function open(type: FeedbackType) {
@@ -31,35 +56,28 @@ function open(type: FeedbackType) {
 }
 
 function submitFeedback() {
-  emit('feedback', feedbackType.value, feedbackContent.value.trim())
+  emit('feedback', feedbackType.value, feedbackContent.value.trim() || undefined)
   showDialog.value = false
 }
 
 const options: { type: FeedbackType; label: string }[] = [
-  { type: 'correction', label: '内容纠错' },
-  { type: 'suggestion', label: '建议补充' },
+  { type: 'correction', label: '✏️ 内容纠错' },
+  { type: 'suggestion', label: '💡 建议补充' },
 ]
 </script>
 
 <template>
   <div class="feedback-actions">
-    <button
-      type="button"
-      class="action-btn like"
-      :class="{ active: liked }"
-      @click="toggleLike"
-    >
-      <span class="icon">{{ liked ? '👍' : '👍' }}</span>
-      有帮助 {{ likeCount ?? 0 }}
+    <button type="button" class="action-btn like" :class="{ active: liked }" @click="toggleLike">
+      <span class="icon">👍</span>
+      有帮助 <span v-if="likeCount != null">{{ likeCount }}</span>
+    </button>
+    <button type="button" class="action-btn dislike" :class="{ active: disliked }" @click="toggleDislike">
+      <span class="icon">👎</span>
+      没帮助
     </button>
     <span class="divider"></span>
-    <button
-      v-for="opt in options"
-      :key="opt.type"
-      type="button"
-      class="action-btn"
-      @click="open(opt.type)"
-    >
+    <button v-for="opt in options" :key="opt.type" type="button" class="action-btn" @click="open(opt.type)">
       {{ opt.label }}
     </button>
 
@@ -114,9 +132,16 @@ const options: { type: FeedbackType; label: string }[] = [
 }
 
 .action-btn.like.active {
-  border-color: var(--primary);
-  background: var(--primary-subtle);
-  color: var(--primary);
+  border-color: var(--success, #15803d);
+  background: var(--success-subtle, #dcfce7);
+  color: var(--success, #15803d);
+  font-weight: 600;
+}
+
+.action-btn.dislike.active {
+  border-color: var(--danger, #dc2626);
+  background: var(--danger-subtle, #fee2e2);
+  color: var(--danger, #dc2626);
   font-weight: 600;
 }
 

@@ -1,8 +1,8 @@
 <script setup lang="ts">
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
-import { analyticsApi } from '@/api/analytics'
-import { MOCK_CATEGORY_DISTRIBUTION, MOCK_OVERVIEW, MOCK_QUERY_TREND } from '@/mock/data'
+import { analyticsApi, type AnalyticsRange } from '@/api/analytics'
 import type { AnalyticsOverview, CategoryDistribution, HotSearchItem, QueryTrendPoint } from '@/types/api'
 
 defineOptions({ name: 'DashboardView' })
@@ -11,23 +11,33 @@ const overview = ref<AnalyticsOverview | null>(null)
 const trend = ref<QueryTrendPoint[]>([])
 const distribution = ref<CategoryDistribution[]>([])
 const hotSearches = ref<HotSearchItem[]>([])
+const range = ref<AnalyticsRange>('week')
+const loading = ref(false)
+const error = ref('')
 
 const trendRef = ref<HTMLDivElement>()
 const pieRef = ref<HTMLDivElement>()
 let trendChart: echarts.ECharts | null = null
 let pieChart: echarts.ECharts | null = null
 
-function renderTrend() {
+const RANGE_OPTIONS: { value: AnalyticsRange; label: string }[] = [
+  { value: 'today', label: '今日' },
+  { value: 'week', label: '本周' },
+  { value: 'month', label: '本月' },
+  { value: 'quarter', label: '近三月' },
+]
+
+function renderTrend(): void {
   if (!trendRef.value) return
   trendChart ??= echarts.init(trendRef.value)
   trendChart.setOption({
     tooltip: { trigger: 'axis' },
     grid: { left: 40, right: 20, top: 20, bottom: 30 },
     xAxis: { type: 'category', data: trend.value.map((t) => t.date), boundaryGap: false },
-    yAxis: { type: 'value' },
+    yAxis: { type: 'value', minInterval: 1 },
     series: [
       {
-        name: '问答次数',
+        name: '反馈数',
         type: 'line',
         smooth: true,
         symbol: 'circle',
@@ -41,7 +51,7 @@ function renderTrend() {
   })
 }
 
-function renderPie() {
+function renderPie(): void {
   if (!pieRef.value) return
   pieChart ??= echarts.init(pieRef.value)
   pieChart.setOption({
@@ -61,32 +71,42 @@ function renderPie() {
   })
 }
 
-function resize() {
+function resize(): void {
   trendChart?.resize()
   pieChart?.resize()
 }
 
-onMounted(async () => {
-  window.addEventListener('resize', resize)
+async function load(): Promise<void> {
+  loading.value = true
+  error.value = ''
   try {
     const [over, tr, dist, hot] = await Promise.all([
-      analyticsApi.overview(),
-      analyticsApi.queryTrend(),
+      analyticsApi.overview(range.value),
+      analyticsApi.feedbackTrend(range.value),
       analyticsApi.categoryDistribution(),
-      analyticsApi.hotSearch(),
+      analyticsApi.hotSearch(range.value),
     ])
     overview.value = over
     trend.value = tr
     distribution.value = dist
     hotSearches.value = hot
-  } catch {
-    overview.value = MOCK_OVERVIEW
-    trend.value = MOCK_QUERY_TREND
-    distribution.value = MOCK_CATEGORY_DISTRIBUTION
-    hotSearches.value = []
+  } catch (e) {
+    error.value = e instanceof Error ? e.message : '加载失败，请稍后重试'
+    ElMessage.error('仪表盘数据加载失败')
+  } finally {
+    loading.value = false
+    renderTrend()
+    renderPie()
   }
-  renderTrend()
-  renderPie()
+}
+
+watch(range, () => {
+  void load()
+})
+
+onMounted(() => {
+  window.addEventListener('resize', resize)
+  void load()
 })
 
 onBeforeUnmount(() => {
@@ -98,19 +118,33 @@ onBeforeUnmount(() => {
 })
 
 const cards = [
-  { label: '知识总量', value: () => overview.value?.knowledgeTotal ?? 0, suffix: '', note: () => `本周新增 ${overview.value?.knowledgeNewThisWeek ?? 0}` },
-  { label: '累计问答', value: () => overview.value?.queryTotal ?? 0, suffix: '', note: () => `环比 ${overview.value && overview.value.queryChangePercent >= 0 ? '+' : ''}${overview.value?.queryChangePercent ?? 0}%` },
+  { label: '知识总量', value: () => overview.value?.knowledgeTotal ?? 0, suffix: '', note: () => `本周新增 ${overview.value?.knowledgeNewThisWeek ?? 0} 篇` },
+  { label: '查询次数', value: () => overview.value?.queryTotal ?? 0, suffix: '', note: () => `环比 ${overview.value && overview.value.queryChangePercent >= 0 ? '+' : ''}${overview.value?.queryChangePercent ?? 0}%` },
   { label: '答案采纳率', value: () => overview.value?.adoptionRate ?? 0, suffix: '%', note: () => `环比 +${overview.value?.adoptionChangePercent ?? 0}%` },
   { label: '无结果率', value: () => overview.value?.noResultRate ?? 0, suffix: '%', note: () => `环比 ${overview.value && overview.value.noResultChangePercent >= 0 ? '+' : ''}${overview.value?.noResultChangePercent ?? 0}%` },
 ]
 </script>
 
 <template>
-  <div class="dashboard">
+  <div class="dashboard" v-loading="loading">
     <header class="page-head">
       <h1>数据仪表盘</h1>
-      <p class="muted">知识库问答系统运行概览</p>
+      <p class="muted">知识库运营数据概览</p>
     </header>
+
+    <div class="range-bar">
+      <el-radio-group v-model="range">
+        <el-radio-button v-for="opt in RANGE_OPTIONS" :key="opt.value" :value="opt.value">
+          {{ opt.label }}
+        </el-radio-button>
+      </el-radio-group>
+      <span v-if="overview?.updatedAt" class="updated-at">数据更新于 {{ overview.updatedAt }}</span>
+    </div>
+
+    <div v-if="error" class="error-banner">
+      <span>⚠️ {{ error }}</span>
+      <el-button size="small" @click="load">重试</el-button>
+    </div>
 
     <div class="stat-grid">
       <div v-for="c in cards" :key="c.label" class="stat-card">
@@ -122,24 +156,25 @@ const cards = [
 
     <div class="chart-grid">
       <div class="card chart-card">
-        <h2>近 7 日问答趋势</h2>
+        <h2>📈 反馈趋势</h2>
         <div ref="trendRef" class="chart"></div>
       </div>
       <div class="card chart-card">
-        <h2>分类分布</h2>
+        <h2>🏷️ 分类分布</h2>
         <div ref="pieRef" class="chart"></div>
       </div>
     </div>
 
-    <div v-if="hotSearches.length" class="card hot-card">
-      <h2>热搜排行 Top 10</h2>
-      <ol class="hot-list">
+    <div class="card hot-card">
+      <h2>🔍 热搜排行 Top 10</h2>
+      <ol v-if="hotSearches.length" class="hot-list">
         <li v-for="h in hotSearches" :key="h.rank">
           <span class="rank" :class="{ top: h.rank <= 3 }">{{ h.rank }}</span>
           <span class="keyword">{{ h.keyword }}</span>
           <span class="count">{{ h.count }} 次</span>
         </li>
       </ol>
+      <div v-else class="hot-empty">暂无搜索数据</div>
     </div>
   </div>
 </template>
@@ -162,6 +197,32 @@ const cards = [
 
 .muted {
   color: var(--text-secondary);
+  font-size: 0.875rem;
+}
+
+.range-bar {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 20px;
+  flex-wrap: wrap;
+}
+
+.updated-at {
+  font-size: 0.75rem;
+  color: var(--text-tertiary);
+}
+
+.error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  background: var(--danger-subtle, #fee2e2);
+  color: var(--danger, #dc2626);
+  border-radius: var(--radius-md);
+  padding: 12px 16px;
+  margin-bottom: 16px;
   font-size: 0.875rem;
 }
 
@@ -276,6 +337,13 @@ const cards = [
 .count {
   font-size: 0.75rem;
   color: var(--text-tertiary);
+}
+
+.hot-empty {
+  color: var(--text-tertiary);
+  font-size: 0.875rem;
+  padding: 16px 0;
+  text-align: center;
 }
 
 @media (max-width: 860px) {

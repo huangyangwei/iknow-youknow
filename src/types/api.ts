@@ -178,14 +178,35 @@ export interface FeedbackItem {
   type: FeedbackType
   sourceType?: 'knowledge' | 'answer'
   sourceId?: number
+  sessionId?: number
   sourceTitle?: string
   question?: string
   content?: string
   status: FeedbackStatus
+  handleNote?: string
+  handledAt?: string
+  handlerName?: string
   createdByName?: string
   createdByRole?: string
   categoryPath?: string
   createdAt: string
+}
+
+/** POST /api/feedback 请求体 */
+export interface FeedbackCreatePayload {
+  type: FeedbackType
+  sourceType: 'knowledge' | 'answer'
+  sourceId?: number
+  sourceTitle?: string
+  sessionId?: number
+  question?: string
+  content?: string
+}
+
+/** PUT /api/feedback/{id}/handle 请求体 */
+export interface FeedbackHandlePayload {
+  status: FeedbackStatus
+  handleNote?: string
 }
 
 export interface AnalyticsOverview {
@@ -216,8 +237,10 @@ export interface HotSearchItem {
   count: number
 }
 
-export interface FeedbackStats {
+export interface FeedbackStatsData {
   pending: number
+  processing: number
+  resolved: number
   monthlyTotal: number
   avgHandleDays: number
 }
