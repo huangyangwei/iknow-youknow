@@ -9,7 +9,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  * scanBasePackages 覆盖 common/infra 与各业务模块；@MapperScan 注册各模块 Mapper。
  */
 @SpringBootApplication(scanBasePackages = "com.huangyangwei.iknow")
-@MapperScan("com.huangyangwei.iknow.module.auth.mapper")
+@MapperScan({"com.huangyangwei.iknow.module.auth.mapper", "com.huangyangwei.iknow.module.knowledge.mapper"})
 public class IKnowApplication {
 
     public static void main(String[] args) {
