@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: m0-spike2-rag
+  datasource:
+    url: jdbc:postgresql://localhost:5433/iknow
+    username: postgres
+    password: postgres
+  ai:
+    # 不设置 spring.ai.model.chat —— 所有 provider 的 ChatModel auto-config 均 matchIfMissing=true，四模型同时激活
+    vectorstore:
+      type: pgvector
+      pgvector:
+        table-name: kb_chunk            # 指向自建业务表（技术方案 kb_chunk）
+        schema-name: public
+        dimensions: 1024                # 与生产锁定维度（BGE-M3 1024）对齐
+        index-type: HNSW                # HNSW 索引
+        distance-type: COSINE_DISTANCE  # 余弦距离（<=>），对应 vector_cosine_ops
+        id-type: TEXT                   # 演示用稳定字符串 id；生产可按方案用 BIGSERIAL(BIGINT)
+        initialize-schema: true         # 首次启动自动建表 + 扩展 + HNSW 索引（幂等）
+        remove-existing-vector-store-table: false
+    # —— 模型 1：Anthropic 协议（实测指向 DeepSeek Anthropic 兼容端点）——
+    anthropic:
+      base-url: https://api.deepseek.com/anthropic
+      api-key: ${ANTHROPIC_AUTH_TOKEN:}
+      chat:
+        options:
+          model: ${ANTHROPIC_DEFAULT_OPUS_MODEL:deepseek-v4-pro[1M]}
+    # —— 模型 2：DeepSeek 原生（OpenAI 兼容协议）——
+    deepseek:
+      base-url: https://api.deepseek.com
+      api-key: ${DEEPSEEK_API_KEY:${ANTHROPIC_AUTH_TOKEN:}}
+      chat:
+        options:
+          model: deepseek-chat
+    # —— 模型 3：OpenAI（兼容端点；无独立 key 时回退到 DeepSeek key 验证 OpenAI 协议通路）——
+    openai:
+      base-url: https://api.deepseek.com
+      api-key: ${OPENAI_API_KEY:${ANTHROPIC_AUTH_TOKEN:}}
+      chat:
+        options:
+          model: deepseek-chat
+    # —— 模型 4：Google Gemini（无 key → 仅注册不可用，模板留待接入）——
+    google:
+      genai:
+        base-url: https://generativelanguage.googleapis.com
+        api-key: ${GEMINI_API_KEY:spike-dummy-key}
+        chat:
+          options:
+            model: gemini-2.5-pro
+
+server:
+  port: 18080
+
+logging:
+  level:
+    org.springframework.ai: INFO
+    org.springframework.jdbc: DEBUG
+
+app:
+  run-demo: ${RUN_DEMO:false}
