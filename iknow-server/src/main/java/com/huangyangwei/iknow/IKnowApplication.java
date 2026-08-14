@@ -10,7 +10,8 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
  */
 @SpringBootApplication(scanBasePackages = "com.huangyangwei.iknow")
 @MapperScan({"com.huangyangwei.iknow.module.auth.mapper", "com.huangyangwei.iknow.module.knowledge.mapper",
-        "com.huangyangwei.iknow.module.ai.mapper"})
+        "com.huangyangwei.iknow.module.ai.mapper", "com.huangyangwei.iknow.module.feedback.mapper",
+        "com.huangyangwei.iknow.module.analytics.mapper"})
 public class IKnowApplication {
 
     public static void main(String[] args) {
