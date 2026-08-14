@@ -10,6 +10,8 @@ import com.huangyangwei.iknow.module.ai.support.Citation;
 import com.huangyangwei.iknow.module.ai.support.ConfidenceEvaluator;
 import com.huangyangwei.iknow.module.ai.support.ConfidenceEvaluator.Confidence;
 import com.huangyangwei.iknow.module.ai.entity.QaSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
@@ -30,6 +32,8 @@ import java.util.regex.Pattern;
  */
 @Service
 public class RagChatService {
+
+    private static final Logger log = LoggerFactory.getLogger(RagChatService.class);
 
     private static final String SYSTEM_PROMPT =
             "你是企业内部知识库问答助手。仅依据系统提供的参考资料回答，若资料不足请明确说明，不要编造。";
@@ -72,8 +76,6 @@ public class RagChatService {
                 .orElse(0);
         double citationCoverage = citations.isEmpty() ? 0 : Math.min(1, (double) citations.size() / CITATION_TOP_N);
 
-        sessionService.addUserMessage(session.getId(), request.question());
-
         StringBuffer answerBuffer = new StringBuffer();
         Flux<ChatSseEvent> deltas = client.prompt()
                 .system(SYSTEM_PROMPT)
@@ -88,8 +90,11 @@ public class RagChatService {
                     return ChatSseEvent.delta(chunk);
                 });
 
+        // 用户消息延迟到流成功完成后持久化：流失败时不留下「有问无答」的孤儿消息（W2）。
+        // 多轮记忆走 ChatMemory（内存），不受持久化时机影响，语义不变。
         Mono<ChatSseEvent> done = Mono.fromCallable(() -> {
             String answer = answerBuffer.toString();
+            sessionService.addUserMessage(session.getId(), request.question());
             double selfEval = llmSelfEvaluate(modelKey, request.question(), answer, citations);
             Confidence confidence = ConfidenceEvaluator.evaluate(maxSimilarity, citationCoverage, selfEval,
                     citations.size());
@@ -102,7 +107,12 @@ public class RagChatService {
                 Flux.just(ChatSseEvent.start(session.getId())),
                 deltas,
                 done
-        ).onErrorResume(e -> Flux.just(ChatSseEvent.error(e.getMessage())));
+        ).onErrorResume(e -> {
+            // W3：原始异常（含驱动/DB 细节）只记服务端日志，SSE 客户端只收通用提示。
+            log.error("RAG 问答流式处理失败, model={}, sessionId={}, question={}",
+                    modelKey, session.getId(), request.question(), e);
+            return Flux.just(ChatSseEvent.error("生成回答失败，请稍后重试"));
+        });
     }
 
     /** LLM 自评（技术方案 §5.4 分量 3）：让同一模型对答案打分 0~1，失败回退 0.5。 */

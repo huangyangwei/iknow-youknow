@@ -26,23 +26,32 @@ import java.util.Map;
  * 多模型注册（技术方案 §5.3）：Spring AI 2.0 自动配置的 ChatClient.Builder 依赖唯一
  * ChatModel（getIfUnique），多模型场景必须为每个 ChatModel 手动构建 ChatClient（M0 约束）。
  * <p>
- * 各 provider 的 ChatModel 是否生成取决于环境密钥（${ENV} 占位符，M0 约束：禁止明文凭据）。
- * 通过 ObjectProvider 按具体类型取 bean：密钥缺失时该 provider 不产生 ChatModel，
- * 对应 ChatClient 也就不注册，应用在无密钥的沙箱中仍可启动。
- * Google GenAI 的 auto-config 在无密钥时直接抛异常，故整体排除，改为按 GEMINI_API_KEY 手动构建。
+ * 各 provider 是否注册取决于环境密钥（${ENV} 占位符，M0 约束：禁止明文凭据）。
+ * Anthropic/OpenAI 的 auto-config 在无密钥时仍会构建 ChatModel（matchIfMissing=true 且不校验
+ * 密钥），故不能仅凭 ObjectProvider 判空，必须在 Bean 方法内按密钥空值直接返回 null，
+ * 否则无密钥的 provider 也会被注册并在调用期才失败（C1：密钥缺失不注册）。
+ * Google GenAI / DeepSeek 的 auto-config 在无密钥时直接抛异常，故整体排除，改为按密钥手动构建。
  * deterministic 模型为本地桩，始终可用，用于沙箱演示完整 RAG 问答链路。
  */
 @Configuration
 public class ModelConfig {
 
     @Bean
-    public ChatClient claudeChatClient(ObjectProvider<AnthropicChatModel> provider) {
+    public ChatClient claudeChatClient(@Value("${ANTHROPIC_AUTH_TOKEN:}") String apiKey,
+                                       ObjectProvider<AnthropicChatModel> provider) {
+        if (apiKey == null || apiKey.isBlank()) {
+            return null;
+        }
         AnthropicChatModel model = provider.getIfAvailable();
         return model == null ? null : ChatClient.builder(model).build();
     }
 
     @Bean
-    public ChatClient gptChatClient(ObjectProvider<OpenAiChatModel> provider) {
+    public ChatClient gptChatClient(@Value("${OPENAI_API_KEY:}") String apiKey,
+                                    ObjectProvider<OpenAiChatModel> provider) {
+        if (apiKey == null || apiKey.isBlank()) {
+            return null;
+        }
         OpenAiChatModel model = provider.getIfAvailable();
         return model == null ? null : ChatClient.builder(model).build();
     }
