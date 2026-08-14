@@ -8,11 +8,13 @@ import com.huangyangwei.iknow.common.constant.Constants;
 import com.huangyangwei.iknow.common.exception.BusinessException;
 import com.huangyangwei.iknow.module.knowledge.entity.KbKnowledge;
 import com.huangyangwei.iknow.module.knowledge.entity.KbKnowledgeVersion;
+import com.huangyangwei.iknow.module.knowledge.event.KnowledgePublishedEvent;
 import com.huangyangwei.iknow.module.knowledge.mapper.KbKnowledgeMapper;
 import com.huangyangwei.iknow.module.knowledge.mapper.KbKnowledgeVersionMapper;
 import com.huangyangwei.iknow.module.knowledge.support.FtsRebuilder;
 import com.huangyangwei.iknow.module.knowledge.support.HtmlContentConverter;
 import com.huangyangwei.iknow.module.knowledge.support.KnowledgeCacheEvictor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -35,15 +37,17 @@ public class KnowledgePublishService {
     private final HtmlContentConverter contentConverter;
     private final FtsRebuilder ftsRebuilder;
     private final KnowledgeCacheEvictor cacheEvictor;
+    private final ApplicationEventPublisher eventPublisher;
 
     public KnowledgePublishService(KbKnowledgeMapper knowledgeMapper, KbKnowledgeVersionMapper versionMapper,
                                    HtmlContentConverter contentConverter, FtsRebuilder ftsRebuilder,
-                                   KnowledgeCacheEvictor cacheEvictor) {
+                                   KnowledgeCacheEvictor cacheEvictor, ApplicationEventPublisher eventPublisher) {
         this.knowledgeMapper = knowledgeMapper;
         this.versionMapper = versionMapper;
         this.contentConverter = contentConverter;
         this.ftsRebuilder = ftsRebuilder;
         this.cacheEvictor = cacheEvictor;
+        this.eventPublisher = eventPublisher;
     }
 
     /** 发布入口：未来时间进入定时队列，否则立即发布。 */
@@ -95,6 +99,8 @@ public class KnowledgePublishService {
 
         cacheEvictor.evictKnowledgeDetail(id);
         ftsRebuilder.rebuild();
+        eventPublisher.publishEvent(new KnowledgePublishedEvent(id, nextVersionNo, k.getTitle(),
+                k.getHtmlContent(), k.getPlainText(), userId));
     }
 
     /** 定时发布轮询：到点且状态为 pending_publish 的条目立即发布。 */
@@ -154,6 +160,8 @@ public class KnowledgePublishService {
 
         cacheEvictor.evictKnowledgeDetail(id);
         ftsRebuilder.rebuild();
+        eventPublisher.publishEvent(new KnowledgePublishedEvent(id, newVersionNo, k.getTitle(),
+                k.getHtmlContent(), k.getPlainText(), userId));
     }
 
     public List<VersionInfo> versions(Long id) {
