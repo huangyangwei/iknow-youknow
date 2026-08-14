@@ -18,6 +18,7 @@ import java.util.List;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -103,6 +104,22 @@ class AiModuleIntegrationTest {
         assertTrue(body.contains("\"code\":0"), body);
         assertTrue(body.contains("\"key\":\"deterministic\""), "sandbox must expose deterministic model: " + body);
         assertTrue(body.contains("本地确定性模型"), body);
+
+        // C1 回归守卫：密钥未设置的 provider 不得注册/列出。断言按测试环境实际密钥情况
+        // 动态判定，无论环境是否有密钥都成立——有密钥的 provider 不参与该断言。
+        assertUnlistedWhenKeyUnset(body, "ANTHROPIC_AUTH_TOKEN", "claude-opus-5");
+        assertUnlistedWhenKeyUnset(body, "OPENAI_API_KEY", "gpt-4o");
+        assertUnlistedWhenKeyUnset(body, "GEMINI_API_KEY", "gemini-2.5-pro");
+        assertUnlistedWhenKeyUnset(body, "DEEPSEEK_API_KEY", "deepseek-v3");
+    }
+
+    private void assertUnlistedWhenKeyUnset(String body, String envVar, String modelKey) {
+        String value = System.getenv(envVar);
+        if (value != null && !value.isBlank()) {
+            return; // 环境已配置该密钥：该 provider 允许注册，跳过断言
+        }
+        assertFalse(body.contains("\"key\":\"" + modelKey + "\""),
+                modelKey + " must not be listed when " + envVar + " is unset: " + body);
     }
 
     @Test
