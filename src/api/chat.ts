@@ -35,22 +35,29 @@ export const chatApi = {
   models: () => http.get<ModelInfo[]>('/models').then((r) => r.data),
 }
 
-/** 解析单个 SSE frame（`event:` / `data:`），分发到 handlers；fatal 表示该帧终止流 */
+/**
+ * 解析单个 SSE frame（`event:` / `data:`），分发到 handlers；fatal 表示该帧终止流。
+ * 兼容无 `event:` 行的帧：优先取 data JSON 内的 `type` 字段，缺省按 token 处理，
+ * 避免后端以 `data:` 单行帧推送时事件被静默丢弃。
+ */
 function dispatchFrame(frame: string, handlers: StreamHandlers, fatal: () => void): void {
-  const event = frame.match(/^event:\s*(.+)$/m)?.[1]
   const dataLine = frame.match(/^data:\s*(.+)$/m)?.[1]
-  if (!event || !dataLine) return
+  if (dataLine == null) return
+
+  const event = frame.match(/^event:\s*(.+)$/m)?.[1] ?? ''
 
   let payload: unknown
   try {
     payload = JSON.parse(dataLine)
   } catch {
-    handlers.onError('流式响应格式无效')
-    fatal()
+    // 纯文本数据帧：兼容后端直接推送 token 文本的实现
+    if (dataLine.trim()) handlers.onToken(dataLine)
     return
   }
 
-  switch (event) {
+  const type = event || (payload as { type?: string }).type || 'token'
+
+  switch (type) {
     case 'token':
       handlers.onToken((payload as { token?: string }).token ?? '')
       break

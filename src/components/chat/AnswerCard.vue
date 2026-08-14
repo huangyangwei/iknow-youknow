@@ -14,7 +14,7 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  retry: []
+  retry: [id: string]
 }>()
 
 const router = useRouter()
@@ -117,7 +117,7 @@ function openSource(knowledgeId: number): void {
       <button type="button" class="btn-action" :class="{ disliked }" @click="toggleDislike">👎 无帮助</button>
       <button type="button" class="btn-action" @click="submitFeedback('correction')">✏️ 纠错</button>
       <button type="button" class="btn-action" @click="submitFeedback('suggestion')">💡 补充建议</button>
-      <button v-if="message.retryable" type="button" class="btn-action retry" @click="emit('retry')">🔄 重试</button>
+      <button v-if="message.retryable" type="button" class="btn-action retry" @click="emit('retry', message.id)">🔄 重试</button>
     </div>
   </div>
 </template>

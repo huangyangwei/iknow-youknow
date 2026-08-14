@@ -41,8 +41,8 @@ async function handleSend(question: string): Promise<void> {
   scrollToBottom()
 }
 
-async function handleRetry(): Promise<void> {
-  await chat.retry()
+async function handleRetry(id: string): Promise<void> {
+  await chat.retry(id)
   scrollToBottom()
 }
 
@@ -66,13 +66,15 @@ onMounted(async () => {
   }
 })
 
-// 流式完成拿到新会话 id 后同步到 URL
+// 流式完成拿到新会话 id 后同步到 URL；删除当前会话后清理残留 sessionId
 watch(
   () => chat.activeSessionId,
   (id) => {
     const current = Number(route.params.sessionId)
     if (id && id !== current) {
       void router.replace({ name: 'chat', params: { sessionId: id } })
+    } else if (id == null && current) {
+      void router.replace({ name: 'chat' })
     }
   },
 )

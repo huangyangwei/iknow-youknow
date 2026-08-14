@@ -72,6 +72,7 @@ export const useChatStore = defineStore('chat', () => {
     const last = messages.value[messages.value.length - 1]
     if (last?.role === 'assistant' && last.isStreaming) {
       last.isStreaming = false
+      last.retryable = true
       if (!last.content) last.content = '已停止生成'
     }
     isStreaming.value = false
@@ -176,16 +177,15 @@ export const useChatStore = defineStore('chat', () => {
     await runStream(trimmed, context)
   }
 
-  /** 断线/失败后重试：移除末尾失败的答案，重发同一问题 */
-  async function retry(): Promise<void> {
+  /** 断线/失败/停止后重试：按消息 id 定位要重发的答案与其对应问题，重发该问题 */
+  async function retry(id: string): Promise<void> {
     if (sending.value || isStreaming.value) return
-    const lastAssistantIndex = messages.value.length - 1
-    const lastAssistant = messages.value[lastAssistantIndex]
-    if (!lastAssistant || lastAssistant.role !== 'assistant') return
+    const assistantIndex = messages.value.findIndex((m) => m.id === id && m.role === 'assistant')
+    if (assistantIndex === -1) return
 
     let question = ''
     let lastUserIndex = -1
-    for (let i = lastAssistantIndex - 1; i >= 0; i--) {
+    for (let i = assistantIndex - 1; i >= 0; i--) {
       if (messages.value[i].role === 'user') {
         question = messages.value[i].content
         lastUserIndex = i
@@ -195,7 +195,7 @@ export const useChatStore = defineStore('chat', () => {
     if (!question) return
 
     const context = buildContext(lastUserIndex)
-    messages.value.splice(lastAssistantIndex, 1)
+    messages.value.splice(assistantIndex, 1)
     sending.value = true
     await runStream(question, context)
   }

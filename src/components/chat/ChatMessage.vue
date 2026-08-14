@@ -10,8 +10,12 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  retry: []
+  retry: [id: string]
 }>()
+
+function onRetry(id: string): void {
+  emit('retry', id)
+}
 </script>
 
 <template>
@@ -21,7 +25,7 @@ const emit = defineEmits<{
       <template v-if="message.role === 'user'">
         <span class="user-text">{{ message.content }}</span>
       </template>
-      <AnswerCard v-else :message="message" :streaming="streaming" @retry="emit('retry')" />
+      <AnswerCard v-else :message="message" :streaming="streaming" @retry="onRetry" />
     </div>
   </div>
 </template>
