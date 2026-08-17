@@ -2,6 +2,7 @@
 import { onMounted, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { feedbackApi } from '@/api/feedback'
 import { knowledgeApi } from '@/api/knowledge'
 import { ApiError } from '@/api/http'
 import ArticleContent from '@/components/knowledge/ArticleContent.vue'
@@ -41,14 +42,26 @@ watch(() => route.params.id, load, { immediate: true })
 
 onMounted(load)
 
-function handleFeedback(type: FeedbackType) {
+async function handleFeedback(type: FeedbackType, content?: string): Promise<void> {
+  if (!item.value) return
   const map: Record<FeedbackType, string> = {
-    like: '感谢反馈，已记录「有帮助」',
+    like: '已记录「有帮助」，感谢反馈',
     dislike: '已记录「没帮助」，我们将持续优化',
     correction: '纠错反馈已提交，感谢支持',
     suggestion: '补充建议已提交，感谢支持',
   }
-  ElMessage.success(map[type])
+  try {
+    await feedbackApi.create({
+      type,
+      sourceType: 'knowledge',
+      sourceId: item.value.id,
+      sourceTitle: item.value.title,
+      content: content?.trim() || undefined,
+    })
+    ElMessage.success(map[type])
+  } catch (e) {
+    ElMessage.error(e instanceof Error ? e.message : '反馈提交失败，请稍后重试')
+  }
 }
 </script>
 
