@@ -1,16 +1,17 @@
 import MockAdapter from 'axios-mock-adapter'
 import { http } from '@/api/http'
-import type { KnowledgeItem } from '@/types/api'
+import type { FeedbackCreatePayload, FeedbackItem, FeedbackStatus, KnowledgeItem } from '@/types/api'
 import {
   MOCK_CATEGORIES,
   MOCK_CATEGORY_DISTRIBUTION,
   MOCK_CHAT_MESSAGES,
   MOCK_CHAT_SESSIONS,
+  MOCK_FEEDBACK,
+  MOCK_FEEDBACK_TREND,
   MOCK_HOT_SEARCH,
   MOCK_KNOWLEDGE,
   MOCK_MODELS,
   MOCK_OVERVIEW,
-  MOCK_QUERY_TREND,
   MOCK_TAGS,
   MOCK_USERS,
   MOCK_VERSIONS,
@@ -193,10 +194,51 @@ export function setupMock(): void {
 
   // ===== 数据仪表盘 =====
   mock.onGet('/api/analytics/overview').reply(() => ok(MOCK_OVERVIEW))
-  mock.onGet('/api/analytics/query-trend').reply(() => ok(MOCK_QUERY_TREND))
+  mock.onGet('/api/analytics/feedback-trend').reply(() => ok(MOCK_FEEDBACK_TREND))
   mock.onGet('/api/analytics/category-distribution').reply(() => ok(MOCK_CATEGORY_DISTRIBUTION))
   mock.onGet('/api/analytics/hot-search').reply(() => ok(MOCK_HOT_SEARCH))
 
-  // ===== 反馈（占位，供 P3 使用） =====
-  mock.onGet('/api/feedback').reply(() => ok({ items: [], total: 0, page: 1, size: 10 }))
+  // ===== 反馈闭环 =====
+  mock.onGet('/api/feedback').reply((config) => {
+    const params = config.params ?? {}
+    const status = params.status as FeedbackStatus | undefined
+    const type = params.type as string | undefined
+    const page = Number(params.page ?? 1)
+    const size = Number(params.size ?? 10)
+    let list = [...MOCK_FEEDBACK]
+    if (status) list = list.filter((f) => f.status === status)
+    if (type) list = list.filter((f) => f.type === type)
+    list.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1))
+    const start = (page - 1) * size
+    return ok({ items: list.slice(start, start + size), total: list.length, page, size })
+  })
+
+  mock.onPost('/api/feedback').reply((config) => {
+    const body = JSON.parse(config.data ?? '{}') as FeedbackCreatePayload
+    const item: FeedbackItem = {
+      id: Math.max(...MOCK_FEEDBACK.map((f) => f.id)) + 1,
+      type: body.type,
+      sourceType: body.sourceType,
+      sourceId: body.sourceId,
+      sessionId: body.sessionId,
+      sourceTitle: body.sourceTitle,
+      question: body.question,
+      content: body.content,
+      status: 'pending',
+      createdAt: new Date().toISOString(),
+    }
+    MOCK_FEEDBACK.unshift(item)
+    return ok(item)
+  })
+
+  mock.onPut(/\/api\/feedback\/\d+\/handle$/).reply((config) => {
+    const id = atIndex(config.url ?? '', 2)
+    const item = MOCK_FEEDBACK.find((f) => f.id === id)
+    if (!item) return fail(404, 5000, '反馈不存在')
+    const body = JSON.parse(config.data ?? '{}') as { status?: FeedbackStatus; handleNote?: string }
+    if (body.status) item.status = body.status
+    if (body.handleNote != null) item.handleNote = body.handleNote
+    if (body.status && body.status !== 'pending') item.handledAt = new Date().toISOString()
+    return ok(item)
+  })
 }
