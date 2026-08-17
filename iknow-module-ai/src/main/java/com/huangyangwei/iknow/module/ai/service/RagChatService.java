@@ -1,5 +1,6 @@
 package com.huangyangwei.iknow.module.ai.service;
 
+import com.huangyangwei.iknow.api.event.QaCompletedEvent;
 import com.huangyangwei.iknow.common.api.ResultCode;
 import com.huangyangwei.iknow.common.exception.BusinessException;
 import com.huangyangwei.iknow.module.ai.dto.AskRequest;
@@ -16,6 +17,7 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.client.advisor.MessageChatMemoryAdvisor;
 import org.springframework.ai.chat.memory.ChatMemory;
 import org.springframework.ai.rag.advisor.RetrievalAugmentationAdvisor;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
@@ -46,14 +48,17 @@ public class RagChatService {
     private final ChatMemory chatMemory;
     private final HybridRetrievalService retrievalService;
     private final ChatSessionService sessionService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public RagChatService(ModelRouter modelRouter, RetrievalAugmentationAdvisor ragAdvisor, ChatMemory chatMemory,
-                          HybridRetrievalService retrievalService, ChatSessionService sessionService) {
+                          HybridRetrievalService retrievalService, ChatSessionService sessionService,
+                          ApplicationEventPublisher eventPublisher) {
         this.modelRouter = modelRouter;
         this.ragAdvisor = ragAdvisor;
         this.chatMemory = chatMemory;
         this.retrievalService = retrievalService;
         this.sessionService = sessionService;
+        this.eventPublisher = eventPublisher;
     }
 
     public Flux<ChatSseEvent> ask(AskRequest request, Long userId) {
@@ -99,6 +104,7 @@ public class RagChatService {
             Confidence confidence = ConfidenceEvaluator.evaluate(maxSimilarity, citationCoverage, selfEval,
                     citations.size());
             sessionService.saveAssistantAnswer(session.getId(), modelKey, answer, confidence, citations);
+            eventPublisher.publishEvent(new QaCompletedEvent(request.question(), !citations.isEmpty(), userId));
             return ChatSseEvent.done(answer, modelKey, modelRouter.displayName(modelKey),
                     confidence, citations, session.getId());
         }).subscribeOn(Schedulers.boundedElastic());

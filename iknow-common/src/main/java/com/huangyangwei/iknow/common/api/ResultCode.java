@@ -32,6 +32,8 @@ public enum ResultCode {
 
     // 5xxx 反馈
     FEEDBACK_ERROR(5000, "反馈服务异常"),
+    FEEDBACK_NOT_FOUND(5001, "反馈记录不存在"),
+    FEEDBACK_STATUS_INVALID(5002, "反馈状态流转不合法"),
 
     UNKNOWN(9999, "未知错误");
 
