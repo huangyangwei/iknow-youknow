@@ -4,9 +4,11 @@ import type {
   CategoryDistribution,
   ChatMessage,
   ChatSession,
+  ConfidenceLevel,
   HotSearchItem,
   KnowledgeItem,
   KnowledgeVersion,
+  ModelInfo,
   QueryTrendPoint,
   SearchResult,
   Tag,
@@ -347,25 +349,47 @@ export const MOCK_CHAT_SESSIONS: ChatSession[] = [
   { id: 5, title: '企业微信集成配置', updatedAt: '2026-08-08T11:30:00+08:00' },
 ]
 
-export const mockAnswer = (question: string, model: string): ChatMessage => ({
-  id: `a-${Date.now()}`,
-  sessionId: 1,
-  role: 'assistant',
-  content:
-    '<strong>支付已扣款但订单状态未更新</strong>，通常有以下几种原因和排查步骤：\n' +
-    '1. <strong>检查回调日志</strong>：登录支付管理后台 → 回调日志，查看是否有回调记录以及 HTTP 状态码。\n' +
-    '2. <strong>验证签名</strong>：确认回调签名验证是否通过。签名失败是最常见原因之一。\n' +
-    '3. <strong>检查回调 URL 可达性</strong>：确认回调地址可从公网访问，没有被防火墙或安全组拦截。\n' +
-    '4. <strong>查看重试记录</strong>：系统最多重试 5 次，如果全部失败，需要检查服务端错误日志。',
-  model,
-  confidence: 'high',
-  sources: [
-    { knowledgeId: 1, title: '支付回调常见问题排查', categoryPath: '支付平台 › 故障排查' },
-    { knowledgeId: 2, title: '支付回调配置指南', categoryPath: '支付平台 › 支付接入' },
-    { knowledgeId: 4, title: '回调重试机制说明', categoryPath: '支付平台 › 系统机制' },
-  ],
-  createdAt: new Date().toISOString(),
-})
+export const MOCK_MODELS: ModelInfo[] = [
+  { key: 'claude', name: 'Claude Opus 5', desc: '最深度推理，适合复杂问题', dot: 'claude' },
+  { key: 'gpt', name: 'GPT-4o', desc: '多模态能力强，响应快速', dot: 'gpt' },
+  { key: 'gemini', name: 'Gemini 2.5 Pro', desc: '超长上下文，推理均衡', dot: 'gemini' },
+  { key: 'deepseek', name: 'DeepSeek V3', desc: '高性价比，中文理解优秀', dot: 'deepseek' },
+]
+
+export const MODEL_NAMES: Record<string, string> = {
+  claude: 'Claude Opus 5',
+  gpt: 'GPT-4o',
+  gemini: 'Gemini 2.5 Pro',
+  deepseek: 'DeepSeek V3',
+}
+
+/** 根据提问生成模拟答案（Markdown 内容，供 SSE 流式打字机效果演示） */
+export const mockAnswer = (question: string, model: string): ChatMessage => {
+  const modelName = MODEL_NAMES[model] ?? model
+  const confidences: ConfidenceLevel[] = ['high', 'medium', 'low']
+  const confidence = confidences[question.length % 3]
+  const q = question.trim() || '该问题'
+  return {
+    id: `a-${Date.now()}`,
+    sessionId: 1,
+    role: 'assistant',
+    content:
+      `根据知识库内容，关于「${q}」的排查结论如下：\n\n` +
+      `**核心结论**：该问题通常由配置不正确或外部依赖异常导致，建议按以下步骤排查。\n\n` +
+      `1. **检查配置**：进入对应管理后台核对相关配置项，确认与文档要求一致。\n` +
+      `2. **查看日志**：定位到最近一次失败记录，关注错误码与时间点，判断是否与变更相关。\n` +
+      `3. **验证连通性**：确认回调/请求地址可从公网访问，未被防火墙或安全组拦截。\n` +
+      `4. **关注重试**：系统最多重试 5 次，若全部失败需检查服务端错误日志与告警。`,
+    model: modelName,
+    confidence,
+    sources: [
+      { knowledgeId: 1, title: '支付回调常见问题排查', categoryPath: '支付平台 › 故障排查' },
+      { knowledgeId: 2, title: '支付回调配置指南', categoryPath: '支付平台 › 支付接入' },
+      { knowledgeId: 4, title: '回调重试机制说明', categoryPath: '支付平台 › 系统机制' },
+    ],
+    createdAt: new Date().toISOString(),
+  }
+}
 
 export const MOCK_CHAT_MESSAGES: Record<number, ChatMessage[]> = {
   1: [

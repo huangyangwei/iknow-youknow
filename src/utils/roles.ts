@@ -10,8 +10,8 @@ export const ROLE_LABELS: Record<string, string> = {
 /** 角色权限点映射（与后端 RBAC 对齐，前端仅用于菜单/路由显隐，接口仍由后端兜底鉴权） */
 export const ROLE_PERMISSIONS: Record<string, string[]> = {
   MEMBER: [],
-  EDITOR: ['knowledge:manage', 'feedback:manage', 'analytics:read'],
-  ADMIN: ['knowledge:manage', 'feedback:manage', 'analytics:read', 'user:manage'],
+  EDITOR: ['knowledge:manage', 'knowledge:delete', 'feedback:manage', 'analytics:read'],
+  ADMIN: ['knowledge:manage', 'knowledge:delete', 'feedback:manage', 'analytics:read', 'user:manage'],
 }
 
 const ROLE_ORDER: RoleCode[] = ['ADMIN', 'EDITOR', 'MEMBER']

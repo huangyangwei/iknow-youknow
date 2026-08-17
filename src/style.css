@@ -164,6 +164,16 @@ button { font-family: var(--font-body); }
 }
 .el-message { z-index: 5000; }
 
+/* ===== Model dot colors (ModelSelector / AnswerCard / SearchHero 共用) ===== */
+.model-dot.claude { background: var(--primary); }
+.model-dot.gpt { background: #a855f7; }
+.model-dot.gemini { background: #0ea5e9; }
+.model-dot.deepseek { background: #64748b; }
+.mini-dot.claude { background: var(--primary); }
+.mini-dot.gpt { background: #a855f7; }
+.mini-dot.gemini { background: #0ea5e9; }
+.mini-dot.deepseek { background: #64748b; }
+
 /* ===== Scrollbar ===== */
 ::-webkit-scrollbar { width: 8px; height: 8px; }
 ::-webkit-scrollbar-thumb { background: var(--surface-3); border-radius: 99px; }

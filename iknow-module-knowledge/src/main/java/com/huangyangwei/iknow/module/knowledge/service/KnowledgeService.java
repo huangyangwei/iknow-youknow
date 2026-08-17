@@ -17,6 +17,7 @@ import com.huangyangwei.iknow.module.knowledge.entity.KbKnowledge;
 import com.huangyangwei.iknow.module.knowledge.entity.KbKnowledgeTag;
 import com.huangyangwei.iknow.module.knowledge.entity.KbKnowledgeVersion;
 import com.huangyangwei.iknow.module.knowledge.entity.KbTag;
+import com.huangyangwei.iknow.module.knowledge.event.KnowledgeDeletedEvent;
 import com.huangyangwei.iknow.module.knowledge.mapper.KbCategoryMapper;
 import com.huangyangwei.iknow.module.knowledge.mapper.KbKnowledgeMapper;
 import com.huangyangwei.iknow.module.knowledge.mapper.KbKnowledgeTagMapper;
@@ -26,6 +27,7 @@ import com.huangyangwei.iknow.module.knowledge.support.HtmlContentConverter;
 import com.huangyangwei.iknow.module.knowledge.support.KnowledgeCacheEvictor;
 import com.huangyangwei.iknow.module.knowledge.support.KnowledgeTagSupport;
 import org.springframework.cache.annotation.Cacheable;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -55,12 +57,13 @@ public class KnowledgeService {
     private final KnowledgeTagSupport tagSupport;
     private final KnowledgeCacheEvictor cacheEvictor;
     private final KnowledgePublishService publishService;
+    private final ApplicationEventPublisher eventPublisher;
 
     public KnowledgeService(KbKnowledgeMapper knowledgeMapper, KbKnowledgeTagMapper knowledgeTagMapper,
                             KbKnowledgeVersionMapper versionMapper, KbTagMapper tagMapper,
                             KbCategoryMapper categoryMapper, HtmlContentConverter contentConverter,
                             KnowledgeTagSupport tagSupport, KnowledgeCacheEvictor cacheEvictor,
-                            KnowledgePublishService publishService) {
+                            KnowledgePublishService publishService, ApplicationEventPublisher eventPublisher) {
         this.knowledgeMapper = knowledgeMapper;
         this.knowledgeTagMapper = knowledgeTagMapper;
         this.versionMapper = versionMapper;
@@ -70,6 +73,7 @@ public class KnowledgeService {
         this.tagSupport = tagSupport;
         this.cacheEvictor = cacheEvictor;
         this.publishService = publishService;
+        this.eventPublisher = eventPublisher;
     }
 
     public PageResult<KnowledgeListItem> page(KnowledgeQuery query) {
@@ -218,6 +222,7 @@ public class KnowledgeService {
                 .eq(KbKnowledgeVersion::getKnowledgeId, id));
         knowledgeMapper.deleteById(id);
         cacheEvictor.evictKnowledgeDetail(id);
+        eventPublisher.publishEvent(new KnowledgeDeletedEvent(id));
     }
 
     private void applySort(LambdaQueryWrapper<KbKnowledge> wrapper, String sort) {

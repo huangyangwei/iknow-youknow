@@ -20,6 +20,42 @@ spring:
     redis:
       host: localhost
       port: 6379
+  # Google GenAI / DeepSeek 的 auto-config 在无 api-key 时于 bean 创建阶段直接抛异常
+  # （不随密钥缺失跳过），故整体排除，改由 ModelConfig 按 ${GEMINI_API_KEY} / ${DEEPSEEK_API_KEY}
+  # 手动构建（见 ModelConfig#geminiChatClient / deepseekChatClient）。
+  autoconfigure:
+    exclude:
+      - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
+      - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
+  # ===== Spring AI（P2 问答，M0 锁定 2.0.0）=====
+  ai:
+    vectorstore:
+      type: pgvector
+      pgvector:
+        table-name: kb_chunk            # 指向 Flyway 自建业务表（技术方案 kb_chunk）
+        schema-name: public
+        dimensions: 1024                # 与生产锁定维度（BGE-M3 1024）对齐
+        index-type: HNSW                # HNSW 索引（vector_cosine_ops）
+        distance-type: COSINE_DISTANCE  # 余弦距离（<=>）
+        id-type: TEXT                   # 确定性 chunk id：{knowledgeId}-{versionNo}-{chunkIndex}
+        initialize-schema: false        # M0 约束：生产由 Flyway 管理表结构，禁止自动建表
+        remove-existing-vector-store-table: false
+        schema-validation: false        # 嵌入式 PG 无 pgvector 时不校验列
+    # 多模型路由（M0 验证）：不设置 spring.ai.model.chat，所有 provider 的 ChatModel
+    # auto-config 同时激活（matchIfMissing=true），由 ModelConfig 手动构建 ChatClient。
+    # 模型密钥只允许 ${ENV} 占位符，禁止提交明文凭据（M0 约束）。
+    anthropic:
+      base-url: ${ANTHROPIC_BASE_URL:https://api.anthropic.com}
+      api-key: ${ANTHROPIC_AUTH_TOKEN:}
+      chat:
+        options:
+          model: ${ANTHROPIC_DEFAULT_OPUS_MODEL:claude-opus-5}
+    openai:
+      base-url: ${OPENAI_BASE_URL:https://api.openai.com}
+      api-key: ${OPENAI_API_KEY:}
+      chat:
+        options:
+          model: ${OPENAI_DEFAULT_MODEL:gpt-4o}
 
 mybatis-plus:
   configuration:

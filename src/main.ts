@@ -14,6 +14,8 @@ setupMocks()
 const app = createApp(App)
 
 app.use(createPinia())
+// 应用启动时把持久化 token 同步到内存 tokenStore，供 axios 拦截器使用（刷新不丢会话）
+useAuthStore().syncToken()
 app.use(router)
 app.use(ElementPlus)
 for (const [key, component] of Object.entries(ElementPlusIconsVue)) {

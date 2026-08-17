@@ -43,4 +43,20 @@ public final class Constants {
     public static final String KNOWLEDGE_STATUS_PUBLISHED = "published";
     public static final String KNOWLEDGE_STATUS_ARCHIVED = "archived";
     public static final String KNOWLEDGE_STATUS_PENDING_PUBLISH = "pending_publish";
+
+    // 反馈类型与状态（P3，技术方案 §9.2 fb_feedback）
+    public static final String FEEDBACK_TYPE_LIKE = "like";
+    public static final String FEEDBACK_TYPE_DISLIKE = "dislike";
+    public static final String FEEDBACK_TYPE_CORRECTION = "correction";
+    public static final String FEEDBACK_TYPE_SUGGESTION = "suggestion";
+    public static final String FEEDBACK_STATUS_PENDING = "pending";
+    public static final String FEEDBACK_STATUS_PROCESSING = "processing";
+    public static final String FEEDBACK_STATUS_RESOLVED = "resolved";
+
+    // 站内通知
+    public static final String NOTIFICATION_TYPE_FEEDBACK = "feedback";
+
+    // 统计查询类型（P3，技术方案 §9.2 stat_query_log）
+    public static final String QUERY_TYPE_SEARCH = "search";
+    public static final String QUERY_TYPE_QA = "qa";
 }

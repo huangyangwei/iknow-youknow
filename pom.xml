@@ -24,6 +24,9 @@
     <module>iknow-api</module>
     <module>iknow-module-auth</module>
     <module>iknow-module-knowledge</module>
+    <module>iknow-module-ai</module>
+    <module>iknow-module-feedback</module>
+    <module>iknow-module-analytics</module>
     <module>iknow-server</module>
   </modules>
 
