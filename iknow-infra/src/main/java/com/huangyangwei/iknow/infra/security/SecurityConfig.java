@@ -7,6 +7,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.HttpMethod;
 import org.springframework.http.MediaType;
+import org.springframework.security.config.ObjectPostProcessor;
 import org.springframework.security.config.annotation.method.configuration.EnableMethodSecurity;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -14,6 +15,7 @@ import org.springframework.security.config.http.SessionCreationPolicy;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
+import org.springframework.security.web.access.intercept.AuthorizationFilter;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
 import tools.jackson.databind.ObjectMapper;
 
@@ -57,7 +59,16 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/login").permitAll()
                         .requestMatchers("/actuator/health", "/actuator/info").permitAll()
                         .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
-                        .anyRequest().authenticated())
+                        .anyRequest().authenticated()
+                        // SSE/WebFlux 异步分发时不再重复鉴权：JWT 过滤器是 OncePerRequestFilter，
+                        // 异步分发不会重跑，若再次校验会在流式响应已提交后抛 AccessDenied 导致连接中断。
+                        .withObjectPostProcessor(new ObjectPostProcessor<AuthorizationFilter>() {
+                            @Override
+                            public <O extends AuthorizationFilter> O postProcess(O filter) {
+                                filter.setFilterAsyncDispatch(false);
+                                return filter;
+                            }
+                        }))
                 .exceptionHandling(eh -> eh
                         .authenticationEntryPoint((request, response, ex) ->
                                 writeError(response, HttpServletResponse.SC_UNAUTHORIZED, ResultCode.UNAUTHORIZED))

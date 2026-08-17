@@ -20,6 +20,8 @@ public final class Constants {
     public static final String CACHE_USER = "user";
     public static final String CACHE_ROLE = "role";
     public static final String CACHE_KNOWLEDGE_DETAIL = "knowledge:detail";
+    public static final String CACHE_CATEGORY_TREE = "knowledge:category";
+    public static final String CACHE_TAG_DICT = "knowledge:tag";
     public static final String CACHE_SYSTEM_CONFIG = "system:config";
 
     // 内置角色码
@@ -35,4 +37,10 @@ public final class Constants {
     public static final String PERM_FEEDBACK_HANDLE = "feedback:handle";
 
     public static final String DEFAULT_AUTH_PROVIDER = "email_password";
+
+    // 知识状态
+    public static final String KNOWLEDGE_STATUS_DRAFT = "draft";
+    public static final String KNOWLEDGE_STATUS_PUBLISHED = "published";
+    public static final String KNOWLEDGE_STATUS_ARCHIVED = "archived";
+    public static final String KNOWLEDGE_STATUS_PENDING_PUBLISH = "pending_publish";
 }

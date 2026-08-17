@@ -23,6 +23,8 @@
     <module>iknow-infra</module>
     <module>iknow-api</module>
     <module>iknow-module-auth</module>
+    <module>iknow-module-knowledge</module>
+    <module>iknow-module-ai</module>
     <module>iknow-server</module>
   </modules>
 
@@ -33,6 +35,8 @@
     <jjwt.version>0.12.6</jjwt.version>
     <nacos-client.version>2.4.3</nacos-client.version>
     <zonky.version>2.2.2</zonky.version>
+    <jsoup.version>1.17.2</jsoup.version>
+    <commonmark.version>0.22.0</commonmark.version>
   </properties>
 
   <dependencyManagement>
@@ -83,6 +87,23 @@
         <groupId>io.zonky.test</groupId>
         <artifactId>embedded-postgres</artifactId>
         <version>${zonky.version}</version>
+      </dependency>
+      <!-- 富文本 HTML 解析/净化（发布时 HTML→纯文本双通道） -->
+      <dependency>
+        <groupId>org.jsoup</groupId>
+        <artifactId>jsoup</artifactId>
+        <version>${jsoup.version}</version>
+      </dependency>
+      <!-- Markdown 批量导入（commonmark + GFM 表格扩展） -->
+      <dependency>
+        <groupId>org.commonmark</groupId>
+        <artifactId>commonmark</artifactId>
+        <version>${commonmark.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.commonmark</groupId>
+        <artifactId>commonmark-ext-gfm-tables</artifactId>
+        <version>${commonmark.version}</version>
       </dependency>
     </dependencies>
   </dependencyManagement>
