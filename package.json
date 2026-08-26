@@ -17,6 +17,7 @@
     "dompurify": "^3.4.13",
     "echarts": "^6.1.0",
     "element-plus": "^2.9.11",
+    "json-bigint": "^1.0.0",
     "markdown-it": "^15.0.0",
     "pinia": "^3.0.1",
     "vue": "^3.5.13",

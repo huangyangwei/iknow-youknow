@@ -3,12 +3,13 @@ import { defineStore } from 'pinia'
 import { useStorage, type RemovableRef } from '@vueuse/core'
 import { authApi } from '@/api/auth'
 import { normalizeAccessToken, tokenStore } from '@/api/token'
+import { safeJson } from '@/utils/safeJson'
 import type { LoginPayload, UserInfo } from '@/types/api'
 import { hasPermission as checkPermission, isAdminRole, roleLabel } from '@/utils/roles'
 
 const userSerializer = {
-  read: (v: string): UserInfo | null => (v ? (JSON.parse(v) as UserInfo) : null),
-  write: (v: UserInfo | null): string => JSON.stringify(v),
+  read: (v: string): UserInfo | null => (v ? safeJson.parse<UserInfo>(v) : null),
+  write: (v: UserInfo | null): string => safeJson.stringify(v),
 }
 
 export const useAuthStore = defineStore('auth', () => {

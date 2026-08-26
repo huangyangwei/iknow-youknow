@@ -2,6 +2,8 @@ package com.huangyangwei.iknow.module.ai.config;
 
 import com.huangyangwei.iknow.module.ai.support.DeterministicEmbeddingModel;
 import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.ai.openai.OpenAiEmbeddingModel;
+import org.springframework.ai.openai.OpenAiEmbeddingOptions;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -30,6 +32,11 @@ public class EmbeddingModelConfig {
     @Primary
     @ConditionalOnProperty(name = "spring.ai.model.embedding", havingValue = "none", matchIfMissing = true)
     public EmbeddingModel deterministicEmbeddingModel() {
-        return new DeterministicEmbeddingModel();
+        return OpenAiEmbeddingModel.builder().options(OpenAiEmbeddingOptions.builder()
+                        // BGE-M3 原生 1024 维，硅基流动不支持 dimensions 参数，勿传
+                        .model("BAAI/bge-m3")
+                        .apiKey(System.getenv("SILICONFLOW_API_KEY"))
+                        .baseUrl("https://api.siliconflow.cn/v1")
+                .build()).build();
     }
 }

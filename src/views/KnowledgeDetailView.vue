@@ -21,7 +21,7 @@ const loading = ref(true)
 const error = ref('')
 
 async function load() {
-  const id = Number(route.params.id)
+  const id = String(route.params.id)
   if (!id) {
     error.value = '无效的知识条目'
     loading.value = false

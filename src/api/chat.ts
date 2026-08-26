@@ -1,5 +1,6 @@
 import { http, ApiError } from './http'
 import { tokenStore } from './token'
+import { safeJson } from '@/utils/safeJson'
 import type { ApiPage, ChatContextMessage, ChatMessage, ChatSession, ChatSource, ConfidenceLevel, ModelInfo } from '@/types/api'
 
 export interface AskPayload {
@@ -48,7 +49,7 @@ function normalizeSources(value: unknown): ChatSource[] | undefined {
   if (Array.isArray(value)) return value as ChatSource[]
   if (typeof value !== 'string' || !value) return undefined
   try {
-    const parsed = JSON.parse(value) as unknown
+    const parsed = safeJson.parse(value) as unknown
     return Array.isArray(parsed) ? (parsed as ChatSource[]) : undefined
   } catch {
     return undefined
@@ -77,7 +78,7 @@ function dispatchFrame(frame: string, handlers: StreamHandlers, fatal: () => voi
 
   let payload: unknown
   try {
-    payload = JSON.parse(dataLine)
+    payload = safeJson.parse(dataLine)
   } catch {
     // 纯文本数据帧：兼容后端直接推送 token 文本的实现
     if (dataLine.trim()) handlers.onToken(dataLine)
@@ -140,7 +141,7 @@ export async function streamAnswer(payload: AskPayload, signal: AbortSignal, han
     // 尝试读取后端错误 JSON（如 401 未登录），降级为 HTTP 状态文本
     let message = `请求失败（${response.status}）`
     try {
-      const body = await response.json()
+      const body = safeJson.parse(await response.text())
       message = body?.message ?? message
     } catch { /* 非 JSON 响应 */ }
     if (response.status === 401) {

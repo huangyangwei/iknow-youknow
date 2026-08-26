@@ -25,7 +25,7 @@ const error = ref('')
 const form = ref({
   title: '',
   summary: '',
-  categoryId: null as number | null,
+  categoryId: null as string | null,
   knowledgeType: '',
   tags: [] as string[],
   htmlContent: '',
@@ -54,7 +54,7 @@ const flatCategories = computed(() => {
 const tagSuggestions = computed(() => knowledge.tags.map((t) => t.name))
 
 async function load() {
-  const id = Number(route.params.id)
+  const id = route.params.id as string
   if (!id) return
   loading.value = true
   error.value = ''
@@ -104,7 +104,7 @@ async function save(status: KnowledgeStatus) {
   }
   saving.value = true
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     if (id) {
       await knowledgeApi.update(id, buildPayload(status))
       ElMessage.success('已保存')
@@ -127,7 +127,7 @@ async function publish() {
   }
   saving.value = true
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     const targetId = id || (await knowledgeApi.create(buildPayload('draft'))).id
     await knowledgeApi.publish(targetId)
     if (!id) void router.replace({ name: 'knowledge-editor', params: { id: targetId } })
@@ -146,7 +146,7 @@ async function publishScheduled(scheduledAt: string) {
   }
   saving.value = true
   try {
-    const id = Number(route.params.id)
+    const id = route.params.id as string
     const targetId = id || (await knowledgeApi.create(buildPayload('draft'))).id
     await knowledgeApi.publish(targetId, scheduledAt)
     if (!id) void router.replace({ name: 'knowledge-editor', params: { id: targetId } })
@@ -159,7 +159,7 @@ async function publishScheduled(scheduledAt: string) {
 }
 
 async function rollback(versionNo: number) {
-  const id = Number(route.params.id)
+  const id = route.params.id as string
   if (!id) return
   try {
     await knowledgeApi.rollback(id, versionNo)

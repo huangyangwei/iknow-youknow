@@ -4,31 +4,37 @@ server:
 spring:
   application:
     name: iknow-youknow
-  # 默认 dev：启用嵌入式 PostgreSQL（见 config/EmbeddedPostgresConfig），无需外部数据库。
-  # 生产/外部数据库用 --spring.profiles.active=prod 覆盖。
+  # 默认 local：使用本地 PostgreSQL（localhost:5432/iknow_youknow），需手动建库+执行迁移。
+  # dev：启用嵌入式 PostgreSQL（见 config/EmbeddedPostgresConfig），无需外部数据库。
+  # 生产用 --spring.profiles.active=prod 覆盖。
   profiles:
-    default: dev
+    default: local
   datasource:
     url: jdbc:postgresql://localhost:5432/iknow_youknow
     username: postgres
-    password: postgres
+    password: 123456
     driver-class-name: org.postgresql.Driver
   flyway:
-    enabled: true
+    enabled: false
     locations: classpath:db/migration
+    # 本地已有数据库无 flyway_schema_history 时，先基线标记再执行增量迁移
+    baseline-on-migrate: true
   data:
     redis:
       host: localhost
       port: 6379
   # Google GenAI / DeepSeek 的 auto-config 在无 api-key 时于 bean 创建阶段直接抛异常
-  # （不随密钥缺失跳过），故整体排除，改由 ModelConfig 按 ${GEMINI_API_KEY} / ${DEEPSEEK_API_KEY}
-  # 手动构建（见 ModelConfig#geminiChatClient / deepseekChatClient）。
+  # （不随密钥缺失跳过），故整体排除，改由 ModelConfig 手动构建。
   autoconfigure:
     exclude:
       - org.springframework.ai.model.google.genai.autoconfigure.chat.GoogleGenAiChatAutoConfiguration
       - org.springframework.ai.model.deepseek.autoconfigure.DeepSeekChatAutoConfiguration
   # ===== Spring AI（P2 问答，M0 锁定 2.0.0）=====
   ai:
+    # Embedding 模型切换：none=开发环境(确定性哈希桩), openai=生产(硅基流动 BGE-M3)
+    # 环境变量覆盖：SPRING_AI_MODEL_EMBEDDING=openai
+    model:
+      embedding: ${SPRING_AI_MODEL_EMBEDDING:none}
     vectorstore:
       type: pgvector
       pgvector:
@@ -56,10 +62,30 @@ spring:
       chat:
         options:
           model: ${OPENAI_DEFAULT_MODEL:gpt-4o}
+      # Embedding 单独配置：指向硅基流动（OpenAI 兼容协议），与 Chat 的 base-url/api-key 隔离
+      # 仅当 spring.ai.model.embedding=openai 时激活
+      embedding:
+        model: ${SILICONFLOW_EMBEDDING_MODEL:BAAI/bge-m3}
+        # dimensions 勿传：硅基流动 BGE-M3 不支持此参数（原生 1024 维），传了会 400
+        base-url: ${SILICONFLOW_BASE_URL:https://api.siliconflow.cn/v1}
+        api-key: ${SILICONFLOW_API_KEY:}
+        options:
+          base-url: ${SILICONFLOW_BASE_URL:https://api.siliconflow.cn/v1}
+
+    # DeepSeek：auto-config 已排除（无密钥时抛异常），由 ModelConfig 手动构建。
+    # 密钥通过环境变量注入，禁止提交明文凭据（M0 约束）。
+    deepseek:
+      base-url: ${DEEPSEEK_BASE_URL:https://api.deepseek.com}
+      api-key: ${DEEPSEEK_API_KEY:}
+      chat:
+        options:
+          model: ${DEEPSEEK_DEFAULT_MODEL:deepseek-v4-flash}
 
 mybatis-plus:
   configuration:
     map-underscore-to-camel-case: true
+    # 开发/测试环境打印完整 SQL 及参数，生产环境应移除或通过 log-impl 切换
+    log-impl: org.apache.ibatis.logging.stdout.StdOutImpl
   global-config:
     banner: false
     db-config:
@@ -82,3 +108,13 @@ management:
     web:
       exposure:
         include: health,info,metrics
+
+# ===== 日志级别（开发/测试环境）=====
+logging:
+  level:
+    # MyBatis Mapper 层：打印 SQL 语句与参数绑定
+    com.huangyangwei.iknow.module.auth.mapper: debug
+    com.huangyangwei.iknow.module.knowledge.mapper: debug
+    com.huangyangwei.iknow.module.ai.mapper: debug
+    com.huangyangwei.iknow.module.feedback.mapper: debug
+    com.huangyangwei.iknow.module.analytics.mapper: debug

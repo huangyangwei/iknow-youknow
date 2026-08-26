@@ -16,5 +16,5 @@ export const feedbackApi = {
       })
       .then((r) => r.data),
   create: (payload: FeedbackCreatePayload) => http.post<FeedbackItem>('/feedback', payload).then((r) => r.data),
-  handle: (id: number, payload: FeedbackHandlePayload) => http.put<FeedbackItem>(`/feedback/${id}/handle`, payload).then((r) => r.data),
+  handle: (id: string, payload: FeedbackHandlePayload) => http.put<FeedbackItem>(`/feedback/${id}/handle`, payload).then((r) => r.data),
 }

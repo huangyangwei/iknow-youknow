@@ -1,5 +1,6 @@
 import axios, { type AxiosInstance, type InternalAxiosRequestConfig, type AxiosResponse } from 'axios'
 import { tokenStore } from './token'
+import { safeJson } from '@/utils/safeJson'
 import type { ApiResult } from '@/types/api'
 
 /** 业务错误（后端统一错误码，见 ResultCode） */
@@ -17,6 +18,13 @@ export const http: AxiosInstance = axios.create({
   baseURL: '/api',
   timeout: 20000,
   headers: { 'Content-Type': 'application/json' },
+  // 用 safeJson 替代默认 JSON.parse，防止 Snowflake ID（>2^53-1）精度丢失
+  transformResponse: [(data: unknown) => {
+    if (typeof data === 'string') {
+      try { return safeJson.parse(data) } catch { return data }
+    }
+    return data
+  }],
 })
 
 http.interceptors.request.use((config: InternalAxiosRequestConfig) => {

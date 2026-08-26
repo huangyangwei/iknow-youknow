@@ -55,10 +55,12 @@ public class ChunkVectorizationService {
                         .metadata(metadata)
                         .build());
             }
+            log.info("SILICONFLOW_API_KEY: {}", System.getenv("SILICONFLOW_API_KEY"));
+            log.info("vectorizing knowledge {} version {} chunks {}", knowledgeId, versionNo, docs);
             vectorStore.add(docs);
             log.info("vectorized knowledge {} version {} -> {} chunks", knowledgeId, versionNo, chunks.size());
         } catch (Exception e) {
-            log.warn("vectorize knowledge {} version {} skipped: {}", knowledgeId, versionNo, e.getMessage());
+            log.error("vectorize knowledge {} version {} skipped: {}", knowledgeId, versionNo, e.getMessage(),e);
         }
     }
 

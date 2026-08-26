@@ -17,7 +17,7 @@ export interface ApiPage<T> {
 export type RoleCode = 'ADMIN' | 'EDITOR' | 'MEMBER'
 
 export interface UserInfo {
-  id: number
+  id: string
   username: string
   email: string
   nickname: string
@@ -40,8 +40,8 @@ export interface LoginResponse {
 }
 
 export interface Category {
-  id: number
-  parentId: number
+  id: string
+  parentId: string
   name: string
   productLine?: string
   sort?: number
@@ -50,7 +50,7 @@ export interface Category {
 }
 
 export interface Tag {
-  id: number
+  id: string
   name: string
   knowledgeCount?: number
 }
@@ -59,19 +59,19 @@ export type KnowledgeStatus = 'draft' | 'published' | 'archived' | 'pending_publ
 export type KnowledgeType = '操作指南' | '故障排查' | '接口文档' | '政策说明' | 'FAQ'
 
 export interface KnowledgeItem {
-  id: number
+  id: string
   title: string
   htmlContent?: string
   plainText?: string
   summary?: string
-  categoryId?: number
+  categoryId?: string
   categoryName?: string
   categoryPath?: string
   productLine?: string
   moduleName?: string
   knowledgeType?: KnowledgeType | string
   status: KnowledgeStatus
-  versionNo?: number
+  versionNo?: string
   tags: Tag[]
   viewCount?: number
   likeCount?: number
@@ -79,15 +79,15 @@ export interface KnowledgeItem {
   scheduledPublishTime?: string
   createdAt?: string
   updatedAt: string
-  createdBy?: number
-  updatedBy?: number
+  createdBy?: string
+  updatedBy?: string
   excerpt?: string
 }
 
 export interface KnowledgeVersion {
-  id: number
-  knowledgeId: number
-  versionNo: number
+  id: string
+  knowledgeId: string
+  versionNo: string
   title?: string
   changeNote?: string
   createdByName?: string
@@ -97,8 +97,8 @@ export interface KnowledgeVersion {
 
 export interface SearchParams {
   keyword: string
-  categoryId?: number | null
-  tagId?: number | null
+  categoryId?: string | null
+  tagId?: string | null
   knowledgeType?: string | null
   timeFrom?: string | null
   timeTo?: string | null
@@ -108,10 +108,10 @@ export interface SearchParams {
 }
 
 export interface SearchResult {
-  id: number
+  id: string
   title: string
   summary?: string
-  categoryId?: number
+  categoryId?: string
   categoryName?: string
   knowledgeType?: string
   publishTime?: string
@@ -124,7 +124,7 @@ export interface SearchResult {
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
 
 export interface ChatSource {
-  knowledgeId: number
+  knowledgeId: string
   title: string
   url?: string
   categoryPath?: string
@@ -176,18 +176,18 @@ export type FeedbackType = 'like' | 'dislike' | 'correction' | 'suggestion'
 export type FeedbackStatus = 'pending' | 'processing' | 'resolved'
 
 export interface FeedbackItem {
-  id: number
+  id: string
   type: FeedbackType
   sourceType?: 'knowledge' | 'answer'
-  sourceId?: number
+  sourceId?: string
   sessionId?: string
   question?: string
   content?: string
   status: FeedbackStatus
-  handlerId?: number
+  handlerId?: string
   handleNote?: string
   handledAt?: string
-  createdBy?: number
+  createdBy?: string
   createdAt: string
   updatedAt?: string
 }
@@ -196,7 +196,7 @@ export interface FeedbackItem {
 export interface FeedbackCreatePayload {
   type: FeedbackType
   sourceType: 'knowledge' | 'answer'
-  sourceId?: number
+  sourceId?: string
   sourceTitle?: string
   sessionId?: string
   question?: string
@@ -229,21 +229,21 @@ export interface QueryTrendPoint {
 }
 
 export interface CategoryDistribution {
-  categoryId?: number
+  categoryId?: string
   categoryName: string
   count: number
 }
 
 export interface HotSearchItem {
-  rank: number
+  rank: string
   keyword: string
-  count: number
+  count: string
 }
 
 export interface FeedbackStatsData {
-  pending: number
-  processing: number
-  resolved: number
-  monthlyTotal: number
-  avgHandleDays: number
+  pending: string
+  processing: string
+  resolved: string
+  monthlyTotal: string
+  avgHandleDays: string
 }
