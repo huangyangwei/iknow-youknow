@@ -13,7 +13,7 @@ function newChat(): void {
   void router.push({ name: 'chat' })
 }
 
-async function openSession(id: number): Promise<void> {
+async function openSession(id: string): Promise<void> {
   if (chat.isStreaming) {
     ElMessage.warning('当前有回答正在生成，请先停止')
     return
@@ -26,7 +26,7 @@ async function openSession(id: number): Promise<void> {
   }
 }
 
-async function removeSession(event: MouseEvent, id: number): Promise<void> {
+async function removeSession(event: MouseEvent, id: string): Promise<void> {
   event.stopPropagation()
   try {
     await ElMessageBox.confirm('删除后不可恢复，确定删除该会话？', '删除会话', {

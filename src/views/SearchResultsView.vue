@@ -35,7 +35,7 @@ async function load() {
   error.value = ''
   try {
     const res = await searchApi.search({ ...params })
-    items.value = res.items
+    items.value = res.records
     total.value = res.total
   } catch {
     error.value = '搜索服务暂不可用，请稍后重试'

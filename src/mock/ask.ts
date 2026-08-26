@@ -21,7 +21,7 @@ export async function streamMockAnswer(payload: AskPayload, signal: AbortSignal,
 
   let sessionId = payload.sessionId ?? null
   if (sessionId === null) {
-    sessionId = Math.max(0, ...MOCK_CHAT_SESSIONS.map((s) => s.id)) + 1
+    sessionId = String(Math.max(0, ...MOCK_CHAT_SESSIONS.map((s) => Number(s.id))) + 1)
     MOCK_CHAT_SESSIONS.unshift({ id: sessionId, title: payload.question.slice(0, 20), updatedAt: new Date().toISOString() })
     MOCK_CHAT_MESSAGES[sessionId] = []
   }

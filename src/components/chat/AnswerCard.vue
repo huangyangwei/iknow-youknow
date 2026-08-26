@@ -169,7 +169,7 @@ function openSource(knowledgeId: number): void {
       <button type="button" class="btn-action" :class="{ disliked }" @click="toggleDislike">👎 没帮助</button>
       <button type="button" class="btn-action" @click="openFeedbackDialog('correction')">✏️ 纠错</button>
       <button type="button" class="btn-action" @click="openFeedbackDialog('suggestion')">💡 补充建议</button>
-      <button v-if="message.retryable" type="button" class="btn-action retry" @click="emit('retry', message.id)">🔄 重试</button>
+      <button v-if="message.retryable" type="button" class="btn-action retry" @click="emit('retry', String(message.id))">🔄 重试</button>
     </div>
 
     <el-dialog

@@ -26,7 +26,7 @@ async function load(): Promise<void> {
   loading.value = true
   try {
     const res = await feedbackApi.list({ ...query })
-    items.value = res.items
+    items.value = res.records
     total.value = res.total
   } finally {
     loading.value = false
@@ -39,11 +39,11 @@ async function loadStats(): Promise<void> {
     const res = await feedbackApi.list({ status: '', type: '', page: 1, size: 1000 })
     const now = new Date()
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1)
-    const pending = res.items.filter((f) => f.status === 'pending').length
-    const processing = res.items.filter((f) => f.status === 'processing').length
-    const resolved = res.items.filter((f) => f.status === 'resolved').length
-    const monthTotal = res.items.filter((f) => new Date(f.createdAt) >= monthStart).length
-    const handled = res.items.filter((f) => f.status === 'resolved' && f.handledAt)
+    const pending = res.records.filter((f) => f.status === 'pending').length
+    const processing = res.records.filter((f) => f.status === 'processing').length
+    const resolved = res.records.filter((f) => f.status === 'resolved').length
+    const monthTotal = res.records.filter((f) => new Date(f.createdAt) >= monthStart).length
+    const handled = res.records.filter((f) => f.status === 'resolved' && f.handledAt)
     const avgHandleDays = handled.length
       ? handled.reduce((sum, f) => sum + (new Date(f.handledAt!).getTime() - new Date(f.createdAt).getTime()) / 86_400_000, 0) / handled.length
       : 0
@@ -149,13 +149,12 @@ onMounted(() => {
       <div v-if="currentItem" class="detail-block">
         <div class="detail-meta">
           <span class="type-tag">{{ TYPE_LABELS[currentItem.type] ?? currentItem.type }}</span>
-          <span class="meta-text">{{ currentItem.sourceTitle || currentItem.question || '—' }}</span>
+          <span class="meta-text">{{ currentItem.question || '—' }}</span>
         </div>
         <div v-if="currentItem.content" class="detail-content">「{{ currentItem.content }}」</div>
         <div class="detail-foot-meta">
-          <span>👤 {{ currentItem.createdByName || '—' }}</span>
+          <span>👤 {{ currentItem.createdBy ?? '—' }}</span>
           <span>🕐 {{ formatDateTime(currentItem.createdAt) }}</span>
-          <span v-if="currentItem.categoryPath">📁 {{ currentItem.categoryPath }}</span>
         </div>
 
         <div v-if="currentItem.status === 'resolved'" class="handle-result">
@@ -164,7 +163,7 @@ onMounted(() => {
             <span class="handle-note">{{ currentItem.handleNote || '—' }}</span>
           </div>
           <div class="handle-meta">
-            <span v-if="currentItem.handlerName">处理人：{{ currentItem.handlerName }}</span>
+            <span v-if="currentItem.handlerId">处理人ID：{{ currentItem.handlerId }}</span>
             <span v-if="currentItem.handledAt">处理时间：{{ formatDateTime(currentItem.handledAt) }}</span>
           </div>
         </div>

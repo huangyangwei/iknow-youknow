@@ -7,10 +7,11 @@ export interface ApiResult<T> {
 }
 
 export interface ApiPage<T> {
-  items: T[]
+  records: T[]
   total: number
   page?: number
   size?: number
+  pages?: number
 }
 
 export type RoleCode = 'ADMIN' | 'EDITOR' | 'MEMBER'
@@ -109,13 +110,15 @@ export interface SearchParams {
 export interface SearchResult {
   id: number
   title: string
-  excerpt: string
-  score?: number
-  categoryPath?: string
-  updatedAt: string
+  summary?: string
+  categoryId?: number
+  categoryName?: string
+  knowledgeType?: string
+  publishTime?: string
   viewCount?: number
+  likeCount?: number
+  rank?: number
   tags: string[]
-  status?: KnowledgeStatus
 }
 
 export type ConfidenceLevel = 'high' | 'medium' | 'low'
@@ -130,7 +133,7 @@ export interface ChatSource {
 
 export interface ChatMessage {
   id: string
-  sessionId?: number
+  sessionId?: string
   role: 'user' | 'assistant'
   content: string
   model?: string
@@ -143,7 +146,7 @@ export interface ChatMessage {
 }
 
 export interface ChatSession {
-  id: number
+  id: string
   title: string
   createdAt?: string
   updatedAt?: string
@@ -160,8 +163,7 @@ export interface ModelOption {
 export interface ModelInfo {
   key: string
   name: string
-  desc?: string
-  dot?: string
+  description?: string
 }
 
 /** 多轮追问上下文：随 ask 一起发送的最近会话消息 */
@@ -178,18 +180,16 @@ export interface FeedbackItem {
   type: FeedbackType
   sourceType?: 'knowledge' | 'answer'
   sourceId?: number
-  sessionId?: number
-  sourceTitle?: string
+  sessionId?: string
   question?: string
   content?: string
   status: FeedbackStatus
+  handlerId?: number
   handleNote?: string
   handledAt?: string
-  handlerName?: string
-  createdByName?: string
-  createdByRole?: string
-  categoryPath?: string
+  createdBy?: number
   createdAt: string
+  updatedAt?: string
 }
 
 /** POST /api/feedback 请求体 */
@@ -198,7 +198,7 @@ export interface FeedbackCreatePayload {
   sourceType: 'knowledge' | 'answer'
   sourceId?: number
   sourceTitle?: string
-  sessionId?: number
+  sessionId?: string
   question?: string
   content?: string
 }
@@ -210,15 +210,17 @@ export interface FeedbackHandlePayload {
 }
 
 export interface AnalyticsOverview {
-  knowledgeTotal: number
-  knowledgeNewThisWeek: number
-  queryTotal: number
-  queryChangePercent: number
-  adoptionRate: number
-  adoptionChangePercent: number
+  knowledgeCount: number
+  categoryCount?: number
+  feedbackCount?: number
+  pendingFeedbackCount?: number
+  queryCount: number
+  searchCount?: number
+  qaCount?: number
   noResultRate: number
-  noResultChangePercent: number
-  updatedAt: string
+  adoptionRate: number
+  likeCount?: number
+  dislikeCount?: number
 }
 
 export interface QueryTrendPoint {
@@ -227,8 +229,9 @@ export interface QueryTrendPoint {
 }
 
 export interface CategoryDistribution {
-  name: string
-  value: number
+  categoryId?: number
+  categoryName: string
+  count: number
 }
 
 export interface HotSearchItem {

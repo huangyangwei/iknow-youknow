@@ -110,7 +110,7 @@ class AiModuleIntegrationTest {
         assertUnlistedWhenKeyUnset(body, "ANTHROPIC_AUTH_TOKEN", "claude-opus-5");
         assertUnlistedWhenKeyUnset(body, "OPENAI_API_KEY", "gpt-4o");
         assertUnlistedWhenKeyUnset(body, "GEMINI_API_KEY", "gemini-2.5-pro");
-        assertUnlistedWhenKeyUnset(body, "DEEPSEEK_API_KEY", "deepseek-v3");
+        assertUnlistedWhenKeyUnset(body, "DEEPSEEK_API_KEY", "deepseek-v4");
     }
 
     private void assertUnlistedWhenKeyUnset(String body, String envVar, String modelKey) {
@@ -153,8 +153,8 @@ class AiModuleIntegrationTest {
 
         JsonNode start = events.get(0);
         assertEquals("start", start.path("type").asText());
-        long sessionId = start.path("sessionId").asLong();
-        assertTrue(sessionId > 0, "start event should carry sessionId");
+        String sessionId = start.path("sessionId").asText();
+        assertFalse(sessionId.isBlank(), "start event should carry sessionId");
 
         boolean hasDelta = false;
         for (JsonNode event : events) {
@@ -169,7 +169,7 @@ class AiModuleIntegrationTest {
         assertEquals("done", done.path("type").asText(), "last event should be done");
         assertEquals("deterministic", done.path("model").asText());
         assertEquals("本地确定性模型", done.path("modelName").asText());
-        assertEquals(sessionId, done.path("sessionId").asLong());
+        assertEquals(sessionId, done.path("sessionId").asText());
         assertTrue(done.path("answer").asText().contains(question), "answer should echo the question");
         assertTrue(done.has("confidenceScore"), "done should carry confidenceScore");
         assertTrue(done.path("sources").isArray() && done.path("sources").size() > 0,
@@ -178,10 +178,27 @@ class AiModuleIntegrationTest {
         assertEquals(knowledgeId, firstSource.path("knowledgeId").asLong());
         assertEquals("RAG 演示词条", firstSource.path("title").asText());
 
+        // 二轮追问：前端以字符串 sessionId 回传，必须继续落在同一会话且不能触发 401。
+        HttpRequest followUpRequest = HttpRequest.newBuilder()
+                .uri(URI.create("http://localhost:" + port + "/api/chat/ask"))
+                .header("Content-Type", "application/json")
+                .header("Accept", "text/event-stream")
+                .header("Authorization", "Bearer " + token)
+                .POST(HttpRequest.BodyPublishers.ofString(
+                        "{\"model\":\"deterministic\",\"sessionId\":\"" + sessionId
+                                + "\",\"question\":\"继续追问\"}"))
+                .build();
+        String followUpBody = client.send(followUpRequest, HttpResponse.BodyHandlers.ofString()).body();
+        List<JsonNode> followUpEvents = parseSse(followUpBody);
+        assertFalse(followUpEvents.isEmpty(), "expected follow-up SSE events: " + followUpBody);
+        JsonNode followUpDone = followUpEvents.get(followUpEvents.size() - 1);
+        assertEquals("done", followUpDone.path("type").asText(), "follow-up should complete: " + followUpBody);
+        assertEquals(sessionId, followUpDone.path("sessionId").asText());
+
         // 会话已持久化且属于当前用户
         String sessionsBody = get("/api/chat/sessions", token);
         assertTrue(sessionsBody.contains("\"code\":0"), sessionsBody);
-        assertTrue(sessionsBody.contains("\"id\":" + sessionId), "session should be listed: " + sessionsBody);
+        assertTrue(sessionsBody.contains("\"id\":\"" + sessionId + "\""), "session should be listed with string id: " + sessionsBody);
 
         // 消息已持久化：user + assistant（assistant 携带 model/confidence/sources）
         String messagesBody = get("/api/chat/sessions/" + sessionId + "/messages", token);
@@ -190,21 +207,37 @@ class AiModuleIntegrationTest {
         assertTrue(messages.isArray() && messages.size() >= 2, "user+assistant messages expected: " + messagesBody);
 
         boolean sawUser = false;
+        boolean sawFollowUpUser = false;
         boolean sawAssistant = false;
+        boolean sawAssistantWithCitation = false;
         for (JsonNode message : messages) {
+            assertFalse(message.path("id").asText().isBlank(), "message id should be serialized as string: " + message);
+            assertEquals(sessionId, message.path("sessionId").asText(), "message sessionId should stay exact: " + message);
             if ("user".equals(message.path("role").asText())) {
-                sawUser = true;
-                assertEquals(question, message.path("content").asText());
+                if (question.equals(message.path("content").asText())) {
+                    sawUser = true;
+                }
+                if ("继续追问".equals(message.path("content").asText())) {
+                    sawFollowUpUser = true;
+                }
             }
             if ("assistant".equals(message.path("role").asText())) {
                 sawAssistant = true;
                 assertEquals("deterministic", message.path("model").asText());
                 assertTrue(message.path("confidence").asText().length() > 0, "assistant must carry confidence");
-                assertTrue(message.path("sources").asText().contains("\"knowledgeId\":" + knowledgeId),
-                        "assistant sources should persist citation: " + message.path("sources").asText());
+                JsonNode persistedSources = message.path("sources");
+                if (persistedSources.isArray()) {
+                    for (JsonNode source : persistedSources) {
+                        if (source.path("knowledgeId").asLong() == knowledgeId) {
+                            sawAssistantWithCitation = true;
+                        }
+                    }
+                }
             }
         }
-        assertTrue(sawUser && sawAssistant, "both user and assistant messages must be persisted");
+        assertTrue(sawUser && sawFollowUpUser && sawAssistant,
+                "first/follow-up user and assistant messages must be persisted");
+        assertTrue(sawAssistantWithCitation, "assistant sources should persist citation: " + messagesBody);
     }
 
     @Test

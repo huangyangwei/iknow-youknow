@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { useStorage, type RemovableRef } from '@vueuse/core'
 import { authApi } from '@/api/auth'
-import { tokenStore } from '@/api/token'
+import { normalizeAccessToken, tokenStore } from '@/api/token'
 import type { LoginPayload, UserInfo } from '@/types/api'
 import { hasPermission as checkPermission, isAdminRole, roleLabel } from '@/utils/roles'
 
@@ -23,7 +23,12 @@ export const useAuthStore = defineStore('auth', () => {
   const isAdmin = computed(() => isAdminRole(roles.value))
 
   function syncToken(): void {
-    tokenStore.set(token.value)
+    const normalized = normalizeAccessToken(token.value)
+    if (normalized !== token.value) {
+      token.value = normalized
+      user.value = null
+    }
+    tokenStore.set(normalized)
   }
 
   function hasPermission(permission: string): boolean {

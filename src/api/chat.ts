@@ -1,9 +1,9 @@
-import { http } from './http'
+import { http, ApiError } from './http'
 import { tokenStore } from './token'
-import type { ChatContextMessage, ChatMessage, ChatSession, ChatSource, ConfidenceLevel, ModelInfo } from '@/types/api'
+import type { ApiPage, ChatContextMessage, ChatMessage, ChatSession, ChatSource, ConfidenceLevel, ModelInfo } from '@/types/api'
 
 export interface AskPayload {
-  sessionId?: number | null
+  sessionId?: string | null
   question: string
   model: string
   /** 多轮追问上下文：最近几轮消息（不含本次提问） */
@@ -16,7 +16,7 @@ export interface StreamMeta {
 }
 
 export interface StreamDone {
-  sessionId?: number
+  sessionId?: string
   cursor?: string
 }
 
@@ -29,10 +29,39 @@ export interface StreamHandlers {
 }
 
 export const chatApi = {
-  sessions: () => http.get<ChatSession[]>('/chat/sessions').then((r) => r.data),
-  messages: (sessionId: number) => http.get<ChatMessage[]>(`/chat/sessions/${sessionId}/messages`).then((r) => r.data),
-  deleteSession: (sessionId: number) => http.delete<boolean>(`/chat/sessions/${sessionId}`).then((r) => r.data),
+  sessions: () => http.get<ApiPage<ChatSession>>('/chat/sessions', { params: { page: 1, size: 50 } }).then((r) => r.data.records.map(normalizeSession)),
+  messages: (sessionId: string) => http.get<ChatMessage[]>(`/chat/sessions/${sessionId}/messages`).then((r) => r.data.map(normalizeMessage)),
+  deleteSession: (sessionId: string) => http.delete<boolean>(`/chat/sessions/${sessionId}`).then((r) => r.data),
   models: () => http.get<ModelInfo[]>('/models').then((r) => r.data),
+}
+
+function toId(value: unknown): string | undefined {
+  if (value == null) return undefined
+  return String(value)
+}
+
+function normalizeSession(session: ChatSession): ChatSession {
+  return { ...session, id: toId(session.id) ?? '' }
+}
+
+function normalizeSources(value: unknown): ChatSource[] | undefined {
+  if (Array.isArray(value)) return value as ChatSource[]
+  if (typeof value !== 'string' || !value) return undefined
+  try {
+    const parsed = JSON.parse(value) as unknown
+    return Array.isArray(parsed) ? (parsed as ChatSource[]) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function normalizeMessage(message: ChatMessage): ChatMessage {
+  return {
+    ...message,
+    id: toId(message.id) ?? '',
+    sessionId: toId(message.sessionId),
+    sources: normalizeSources(message.sources),
+  }
 }
 
 /**
@@ -61,6 +90,12 @@ function dispatchFrame(frame: string, handlers: StreamHandlers, fatal: () => voi
     case 'token':
       handlers.onToken((payload as { token?: string }).token ?? '')
       break
+    case 'delta':
+      handlers.onToken((payload as { content?: string }).content ?? '')
+      break
+    case 'start':
+      // SSE start 事件携带 sessionId，与 done 中的一致，此处可忽略或预存
+      break
     case 'citation':
       handlers.onCitation(payload as ChatSource)
       break
@@ -68,7 +103,7 @@ function dispatchFrame(frame: string, handlers: StreamHandlers, fatal: () => voi
       handlers.onMeta(payload as StreamMeta)
       break
     case 'done':
-      handlers.onDone(payload as StreamDone)
+      handlers.onDone({ ...(payload as StreamDone), sessionId: toId((payload as StreamDone).sessionId) })
       break
     case 'error':
       handlers.onError((payload as { message?: string }).message ?? '服务异常')
@@ -101,7 +136,21 @@ export async function streamAnswer(payload: AskPayload, signal: AbortSignal, han
     body: JSON.stringify(payload),
     signal,
   })
-  if (!response.ok || !response.body) throw new Error('无法建立问答连接')
+  if (!response.ok) {
+    // 尝试读取后端错误 JSON（如 401 未登录），降级为 HTTP 状态文本
+    let message = `请求失败（${response.status}）`
+    try {
+      const body = await response.json()
+      message = body?.message ?? message
+    } catch { /* 非 JSON 响应 */ }
+    if (response.status === 401) {
+      tokenStore.set(null)
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'))
+      throw new ApiError(2001, message)
+    }
+    throw new ApiError(response.status, message)
+  }
+  if (!response.body) throw new Error('无法建立问答连接')
 
   const reader = response.body.getReader()
   const decoder = new TextDecoder()

@@ -16,5 +16,7 @@ public class IKnowApplication {
 
     public static void main(String[] args) {
         SpringApplication.run(IKnowApplication.class, args);
+        System.out.println("Starting IKnowApplication..................");
+
     }
 }

@@ -14,7 +14,7 @@ const router = useRouter()
 const chat = useChatStore()
 
 const mode = ref<'search' | 'qa'>('search')
-const modelKey = ref('claude')
+const modelKey = ref('deepseek')
 const overview = ref<AnalyticsOverview | null>(null)
 const hotSearches = ref<HotSearchItem[]>([])
 

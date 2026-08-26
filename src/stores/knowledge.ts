@@ -38,7 +38,7 @@ export const useKnowledgeStore = defineStore('knowledge', () => {
         page: query.page,
         size: query.size,
       })
-      items.value = res.items
+      items.value = res.records
       total.value = res.total
     } finally {
       loading.value = false

@@ -19,13 +19,13 @@ public class ChatSseEvent {
     private String confidence;
     private Double confidenceScore;
     private List<Citation> sources;
-    private Long sessionId;
+    private String sessionId;
     private String message;
 
     public static ChatSseEvent start(Long sessionId) {
         ChatSseEvent event = new ChatSseEvent();
         event.type = "start";
-        event.sessionId = sessionId;
+        event.sessionId = String.valueOf(sessionId);
         return event;
     }
 
@@ -47,7 +47,7 @@ public class ChatSseEvent {
         event.confidence = confidence.level();
         event.confidenceScore = confidence.score();
         event.sources = sources;
-        event.sessionId = sessionId;
+        event.sessionId = String.valueOf(sessionId);
         return event;
     }
 
@@ -90,7 +90,7 @@ public class ChatSseEvent {
         return sources;
     }
 
-    public Long getSessionId() {
+    public String getSessionId() {
         return sessionId;
     }
 

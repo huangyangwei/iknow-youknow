@@ -3,11 +3,13 @@ package com.huangyangwei.iknow.module.ai.controller;
 import com.huangyangwei.iknow.common.api.PageResult;
 import com.huangyangwei.iknow.common.api.Result;
 import com.huangyangwei.iknow.common.api.ResultCode;
+import com.huangyangwei.iknow.common.constant.Constants;
 import com.huangyangwei.iknow.common.exception.BusinessException;
+import com.huangyangwei.iknow.common.util.JwtUtil;
 import com.huangyangwei.iknow.module.ai.dto.AskRequest;
+import com.huangyangwei.iknow.module.ai.dto.ChatMessageResponse;
+import com.huangyangwei.iknow.module.ai.dto.ChatSessionResponse;
 import com.huangyangwei.iknow.module.ai.dto.ChatSseEvent;
-import com.huangyangwei.iknow.module.ai.entity.QaMessage;
-import com.huangyangwei.iknow.module.ai.entity.QaSession;
 import com.huangyangwei.iknow.module.ai.model.ChatModels;
 import com.huangyangwei.iknow.module.ai.service.ChatSessionService;
 import com.huangyangwei.iknow.module.ai.service.RagChatService;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -36,33 +39,55 @@ public class ChatController {
 
     private final RagChatService ragChatService;
     private final ChatSessionService sessionService;
+    private final JwtUtil jwtUtil;
 
-    public ChatController(RagChatService ragChatService, ChatSessionService sessionService) {
+    public ChatController(RagChatService ragChatService, ChatSessionService sessionService, JwtUtil jwtUtil) {
         this.ragChatService = ragChatService;
         this.sessionService = sessionService;
+        this.jwtUtil = jwtUtil;
     }
 
     /** 提问（SSE 流式返回：start → delta* → done|error）。 */
     @PostMapping(value = "/ask", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public Flux<ChatSseEvent> ask(@RequestBody AskRequest request) {
+    public Flux<ChatSseEvent> ask(@RequestBody AskRequest request,
+                                  @RequestHeader(name = Constants.HEADER_AUTHORIZATION, required = false)
+                                  String authorization) {
         if (request == null || !StringUtils.hasText(request.question())) {
             throw new BusinessException(ResultCode.PARAM_VALIDATION_FAILED, "问题不能为空");
         }
         String model = StringUtils.hasText(request.model()) ? request.model() : ChatModels.DEFAULT_MODEL;
         AskRequest normalized = new AskRequest(request.sessionId(), model, request.question().trim());
-        return ragChatService.ask(normalized, SecurityUtils.currentUser().id());
+        return ragChatService.ask(normalized, currentUserId(authorization));
+    }
+
+    private Long currentUserId(String authorization) {
+        try {
+            return SecurityUtils.currentUser().id();
+        } catch (BusinessException e) {
+            if (e.getCode() != ResultCode.UNAUTHORIZED.getCode()) {
+                throw e;
+            }
+            if (!StringUtils.hasText(authorization) || !authorization.startsWith(Constants.TOKEN_PREFIX)) {
+                throw e;
+            }
+            try {
+                return jwtUtil.getUserId(authorization.substring(Constants.TOKEN_PREFIX.length()));
+            } catch (RuntimeException ignored) {
+                throw e;
+            }
+        }
     }
 
     /** 当前用户会话列表。 */
     @GetMapping("/sessions")
-    public Result<PageResult<QaSession>> sessions(@RequestParam(defaultValue = "1") long page,
-                                                  @RequestParam(defaultValue = "10") long size) {
+    public Result<PageResult<ChatSessionResponse>> sessions(@RequestParam(defaultValue = "1") long page,
+                                                            @RequestParam(defaultValue = "10") long size) {
         return Result.ok(sessionService.listSessions(SecurityUtils.currentUser().id(), page, size));
     }
 
     /** 会话消息（含 user/assistant 与引用 JSON）。 */
     @GetMapping("/sessions/{id}/messages")
-    public Result<List<QaMessage>> messages(@PathVariable Long id) {
+    public Result<List<ChatMessageResponse>> messages(@PathVariable Long id) {
         return Result.ok(sessionService.listMessages(id, SecurityUtils.currentUser().id()));
     }
 

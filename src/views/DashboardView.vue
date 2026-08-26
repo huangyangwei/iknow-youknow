@@ -65,7 +65,7 @@ function renderPie(): void {
         center: ['50%', '44%'],
         itemStyle: { borderRadius: 6, borderColor: '#fff', borderWidth: 2 },
         label: { formatter: '{b} {d}%' },
-        data: distribution.value.map((d) => ({ name: d.name, value: d.value })),
+        data: distribution.value.map((d) => ({ name: d.categoryName, value: d.count })),
       },
     ],
   })
@@ -118,10 +118,10 @@ onBeforeUnmount(() => {
 })
 
 const cards = [
-  { label: '知识总量', value: () => overview.value?.knowledgeTotal ?? 0, suffix: '', note: () => `本周新增 ${overview.value?.knowledgeNewThisWeek ?? 0} 篇` },
-  { label: '查询次数', value: () => overview.value?.queryTotal ?? 0, suffix: '', note: () => `环比 ${overview.value && overview.value.queryChangePercent >= 0 ? '+' : ''}${overview.value?.queryChangePercent ?? 0}%` },
-  { label: '答案采纳率', value: () => overview.value?.adoptionRate ?? 0, suffix: '%', note: () => `环比 +${overview.value?.adoptionChangePercent ?? 0}%` },
-  { label: '无结果率', value: () => overview.value?.noResultRate ?? 0, suffix: '%', note: () => `环比 ${overview.value && overview.value.noResultChangePercent >= 0 ? '+' : ''}${overview.value?.noResultChangePercent ?? 0}%` },
+  { label: '知识总量', value: () => overview.value?.knowledgeCount ?? 0, suffix: '', note: () => `反馈待处理 ${overview.value?.pendingFeedbackCount ?? 0} 条` },
+  { label: '查询次数', value: () => overview.value?.queryCount ?? 0, suffix: '', note: () => `搜索 ${overview.value?.searchCount ?? 0} / 问答 ${overview.value?.qaCount ?? 0}` },
+  { label: '答案采纳率', value: () => overview.value?.adoptionRate ?? 0, suffix: '%', note: () => `👍 ${overview.value?.likeCount ?? 0} / 👎 ${overview.value?.dislikeCount ?? 0}` },
+  { label: '无结果率', value: () => overview.value?.noResultRate ?? 0, suffix: '%', note: () => `分类 ${overview.value?.categoryCount ?? 0} 个` },
 ]
 </script>
 
@@ -138,7 +138,7 @@ const cards = [
           {{ opt.label }}
         </el-radio-button>
       </el-radio-group>
-      <span v-if="overview?.updatedAt" class="updated-at">数据更新于 {{ overview.updatedAt }}</span>
+      <span class="updated-at">数据加载完成</span>
     </div>
 
     <div v-if="error" class="error-banner">

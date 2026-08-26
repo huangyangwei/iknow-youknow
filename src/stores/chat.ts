@@ -8,7 +8,7 @@ export const MODELS: ModelOption[] = [
   { key: 'claude', name: 'Claude Opus 5', desc: '最深度推理，适合复杂问题', dot: 'claude' },
   { key: 'gpt', name: 'GPT-4o', desc: '多模态能力强，响应快速', dot: 'gpt' },
   { key: 'gemini', name: 'Gemini 2.5 Pro', desc: '超长上下文，推理均衡', dot: 'gemini' },
-  { key: 'deepseek', name: 'DeepSeek V3', desc: '高性价比，中文理解优秀', dot: 'deepseek' },
+  { key: 'deepseek', name: 'DeepSeek V4', desc: '高性价比，中文理解优秀', dot: 'deepseek' },
 ]
 
 /** 多轮追问携带的上下文轮数（用户+助手各计一轮） */
@@ -20,10 +20,10 @@ function isAbortError(error: unknown): boolean {
 
 export const useChatStore = defineStore('chat', () => {
   const sessions = ref<ChatSession[]>([])
-  const activeSessionId = ref<number | null>(null)
+  const activeSessionId = ref<string | null>(null)
   const messages = ref<ChatMessage[]>([])
   const models = ref<ModelOption[]>(MODELS)
-  const modelKey = ref<string>('claude')
+  const modelKey = ref<string>('deepseek')
   const isStreaming = ref(false)
   const sending = ref(false)
 
@@ -46,7 +46,7 @@ export const useChatStore = defineStore('chat', () => {
     try {
       const list = await chatApi.models()
       if (Array.isArray(list) && list.length) {
-        models.value = list.map((m) => ({ key: m.key, name: m.name, desc: m.desc ?? '', dot: m.dot ?? m.key }))
+        models.value = list.map((m) => ({ key: m.key, name: m.name, desc: m.description ?? '', dot: m.key }))
         if (!models.value.some((m) => m.key === modelKey.value)) modelKey.value = models.value[0].key
       }
     } catch {
@@ -58,7 +58,7 @@ export const useChatStore = defineStore('chat', () => {
     sessions.value = await chatApi.sessions()
   }
 
-  async function openSession(id: number): Promise<void> {
+  async function openSession(id: string): Promise<void> {
     activeSessionId.value = id
     messages.value = await chatApi.messages(id)
   }
@@ -84,7 +84,7 @@ export const useChatStore = defineStore('chat', () => {
     messages.value = []
   }
 
-  async function deleteSession(id: number): Promise<void> {
+  async function deleteSession(id: string): Promise<void> {
     await chatApi.deleteSession(id)
     if (activeSessionId.value === id) {
       activeSessionId.value = null

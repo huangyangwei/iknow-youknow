@@ -345,25 +345,25 @@ export const MOCK_VERSIONS: KnowledgeVersion[] = [
 ]
 
 export const MOCK_CHAT_SESSIONS: ChatSession[] = [
-  { id: 1, title: '支付回调失败排查', updatedAt: '2026-08-14T10:00:00+08:00' },
-  { id: 2, title: '用户账号注销流程', updatedAt: '2026-08-13T16:20:00+08:00' },
-  { id: 3, title: 'API 鉴权失败处理', updatedAt: '2026-08-12T09:10:00+08:00' },
-  { id: 4, title: '订单批量导出方法', updatedAt: '2026-08-10T14:45:00+08:00' },
-  { id: 5, title: '企业微信集成配置', updatedAt: '2026-08-08T11:30:00+08:00' },
+  { id: '1', title: '支付回调失败排查', updatedAt: '2026-08-14T10:00:00+08:00' },
+  { id: '2', title: '用户账号注销流程', updatedAt: '2026-08-13T16:20:00+08:00' },
+  { id: '3', title: 'API 鉴权失败处理', updatedAt: '2026-08-12T09:10:00+08:00' },
+  { id: '4', title: '订单批量导出方法', updatedAt: '2026-08-10T14:45:00+08:00' },
+  { id: '5', title: '企业微信集成配置', updatedAt: '2026-08-08T11:30:00+08:00' },
 ]
 
 export const MOCK_MODELS: ModelInfo[] = [
   { key: 'claude', name: 'Claude Opus 5', desc: '最深度推理，适合复杂问题', dot: 'claude' },
   { key: 'gpt', name: 'GPT-4o', desc: '多模态能力强，响应快速', dot: 'gpt' },
   { key: 'gemini', name: 'Gemini 2.5 Pro', desc: '超长上下文，推理均衡', dot: 'gemini' },
-  { key: 'deepseek', name: 'DeepSeek V3', desc: '高性价比，中文理解优秀', dot: 'deepseek' },
+  { key: 'deepseek', name: 'DeepSeek V4', desc: '高性价比，中文理解优秀', dot: 'deepseek' },
 ]
 
 export const MODEL_NAMES: Record<string, string> = {
   claude: 'Claude Opus 5',
   gpt: 'GPT-4o',
   gemini: 'Gemini 2.5 Pro',
-  deepseek: 'DeepSeek V3',
+  deepseek: 'DeepSeek V4',
 }
 
 /** 根据提问生成模拟答案（Markdown 内容，供 SSE 流式打字机效果演示） */
@@ -374,7 +374,7 @@ export const mockAnswer = (question: string, model: string): ChatMessage => {
   const q = question.trim() || '该问题'
   return {
     id: `a-${Date.now()}`,
-    sessionId: 1,
+    sessionId: '1',
     role: 'assistant',
     content:
       `根据知识库内容，关于「${q}」的排查结论如下：\n\n` +
@@ -394,14 +394,14 @@ export const mockAnswer = (question: string, model: string): ChatMessage => {
   }
 }
 
-export const MOCK_CHAT_MESSAGES: Record<number, ChatMessage[]> = {
+export const MOCK_CHAT_MESSAGES: Record<string, ChatMessage[]> = {
   1: [
-    { id: 'm1', sessionId: 1, role: 'user', content: '客户反馈支付已经扣款成功，但我们的系统订单状态还是"待支付"，回调地址确认配置正确，请问怎么排查？', createdAt: '2026-08-14T09:58:00+08:00' },
+    { id: 'm1', sessionId: '1', role: 'user', content: '客户反馈支付已经扣款成功，但我们的系统订单状态还是"待支付"，回调地址确认配置正确，请问怎么排查？', createdAt: '2026-08-14T09:58:00+08:00' },
     mockAnswer('客户反馈支付已经扣款成功', 'Claude Opus 5'),
   ],
   2: [
-    { id: 'm2', sessionId: 2, role: 'user', content: '用户账号如何注销？', createdAt: '2026-08-13T16:18:00+08:00' },
-    { id: 'm3', sessionId: 2, role: 'assistant', content: '账号注销流程：用户发起申请 → 系统校验 → 进入 7 天冷静期 → 注销完成。注销后数据保留 30 天，期间可申诉恢复。', model: 'GPT-4o', confidence: 'medium', createdAt: '2026-08-13T16:19:00+08:00' },
+    { id: 'm2', sessionId: '2', role: 'user', content: '用户账号如何注销？', createdAt: '2026-08-13T16:18:00+08:00' },
+    { id: 'm3', sessionId: '2', role: 'assistant', content: '账号注销流程：用户发起申请 → 系统校验 → 进入 7 天冷静期 → 注销完成。注销后数据保留 30 天，期间可申诉恢复。', model: 'GPT-4o', confidence: 'medium', createdAt: '2026-08-13T16:19:00+08:00' },
   ],
 }
 
@@ -506,7 +506,7 @@ export const MOCK_FEEDBACK: FeedbackItem[] = [
     id: 104,
     sourceType: 'answer',
     sourceId: 1,
-    sessionId: 3,
+    sessionId: '3',
     sourceTitle: '支付回调常见问题排查',
     question: '支付回调没有触发怎么排查？',
     content: '答案对排查步骤说明清晰，帮助很大。',
@@ -518,7 +518,7 @@ export const MOCK_FEEDBACK: FeedbackItem[] = [
     id: 105,
     sourceType: 'answer',
     sourceId: 2,
-    sessionId: 2,
+    sessionId: '2',
     sourceTitle: '支付回调配置指南',
     question: '回调地址在哪里配置？',
     content: '文中第三步的配置入口和实际后台不一致，我们用的是「产品中心 → 回调设置」。',
@@ -597,7 +597,7 @@ export const MOCK_FEEDBACK: FeedbackItem[] = [
     id: 111,
     sourceType: 'answer',
     sourceId: 5,
-    sessionId: 4,
+    sessionId: '4',
     sourceTitle: '支付结果异步通知规范',
     question: '异步通知的超时时间是多少？',
     content: '答案没有直接回答超时时间，希望给出明确数值。',
@@ -612,7 +612,7 @@ export const MOCK_FEEDBACK: FeedbackItem[] = [
     id: 112,
     sourceType: 'answer',
     sourceId: 1,
-    sessionId: 1,
+    sessionId: '1',
     sourceTitle: '支付回调常见问题排查',
     question: '客户扣款成功但订单未更新怎么处理？',
     content: '结论直接可复用，节省了大量排查时间。',

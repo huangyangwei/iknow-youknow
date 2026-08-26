@@ -9,9 +9,10 @@ defineOptions({ name: 'LoginView' })
 const router = useRouter()
 const route = useRoute()
 const auth = useAuthStore()
+const useMock = import.meta.env.VITE_USE_MOCK !== 'false'
 
-const email = ref('admin@iknow.com')
-const password = ref('123456')
+const email = ref(useMock ? 'admin@iknow.com' : 'admin@iknow.ai')
+const password = ref(useMock ? '123456' : 'Admin@123')
 const isLoading = ref(false)
 const error = ref('')
 
@@ -33,15 +34,21 @@ async function submit() {
   }
 }
 
-const demoAccounts = [
-  { email: 'admin@iknow.com', role: '后端研发（全权限）' },
-  { email: 'editor@iknow.com', role: '知识管理员（知识管理）' },
-  { email: 'member@iknow.com', role: '一线运营（仅查询）' },
-]
+const demoAccounts = useMock
+  ? [
+      { email: 'admin@iknow.com', role: '后端研发（全权限）' },
+      { email: 'editor@iknow.com', role: '知识管理员（知识管理）' },
+      { email: 'member@iknow.com', role: '一线运营（仅查询）' },
+    ]
+  : [
+      { email: 'admin@iknow.ai', role: '系统管理员（全权限）' },
+      { email: 'editor1@iknow.ai', role: '内容编辑甲（知识管理）' },
+      { email: 'member1@iknow.ai', role: '普通成员甲（仅查询）' },
+    ]
 
 function fill(acc: string) {
   email.value = acc
-  password.value = '123456'
+  password.value = useMock ? '123456' : 'Admin@123'
 }
 </script>
 

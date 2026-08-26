@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="CompilerConfiguration">
+    <annotationProcessing>
+      <profile name="Maven default annotation processors profile" enabled="true">
+        <sourceOutputDir name="target/generated-sources/annotations" />
+        <sourceTestOutputDir name="target/generated-test-sources/test-annotations" />
+        <outputRelativeToContentRoot value="true" />
+        <module name="iknow-infra" />
+        <module name="iknow-module-analytics" />
+        <module name="iknow-common" />
+        <module name="iknow-module-auth" />
+        <module name="iknow-module-feedback" />
+        <module name="iknow-api" />
+        <module name="iknow-server" />
+        <module name="iknow-module-ai" />
+        <module name="iknow-module-knowledge" />
+      </profile>
+    </annotationProcessing>
+  </component>
+  <component name="JavacSettings">
+    <option name="ADDITIONAL_OPTIONS_OVERRIDE">
+      <module name="iknow-api" options="-parameters" />
+      <module name="iknow-common" options="-parameters" />
+      <module name="iknow-infra" options="-parameters" />
+      <module name="iknow-module-ai" options="-parameters" />
+      <module name="iknow-module-analytics" options="-parameters" />
+      <module name="iknow-module-auth" options="-parameters" />
+      <module name="iknow-module-feedback" options="-parameters" />
+      <module name="iknow-module-knowledge" options="-parameters" />
+      <module name="iknow-server" options="-parameters" />
+    </option>
+  </component>
+</project>

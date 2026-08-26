@@ -176,12 +176,12 @@ export function setupMock(): void {
   mock.onGet('/api/chat/sessions').reply(() => ok(MOCK_CHAT_SESSIONS))
 
   mock.onGet(/\/api\/chat\/sessions\/\d+\/messages$/).reply((config) => {
-    const id = atIndex(config.url ?? '', 2)
+    const id = String(atIndex(config.url ?? '', 2))
     return ok(MOCK_CHAT_MESSAGES[id] ?? [])
   })
 
   mock.onDelete(/\/api\/chat\/sessions\/\d+$/).reply((config) => {
-    const id = atIndex(config.url ?? '', 1)
+    const id = String(atIndex(config.url ?? '', 1))
     const idx = MOCK_CHAT_SESSIONS.findIndex((s) => s.id === id)
     if (idx === -1) return fail(404, 4001, '会话不存在')
     MOCK_CHAT_SESSIONS.splice(idx, 1)

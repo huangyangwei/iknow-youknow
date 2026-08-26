@@ -5,6 +5,8 @@ import com.baomidou.mybatisplus.extension.plugins.pagination.Page;
 import com.huangyangwei.iknow.common.api.PageResult;
 import com.huangyangwei.iknow.common.api.ResultCode;
 import com.huangyangwei.iknow.common.exception.BusinessException;
+import com.huangyangwei.iknow.module.ai.dto.ChatMessageResponse;
+import com.huangyangwei.iknow.module.ai.dto.ChatSessionResponse;
 import com.huangyangwei.iknow.module.ai.entity.QaMessage;
 import com.huangyangwei.iknow.module.ai.entity.QaSession;
 import com.huangyangwei.iknow.module.ai.mapper.QaMessageMapper;
@@ -13,6 +15,7 @@ import com.huangyangwei.iknow.module.ai.support.Citation;
 import com.huangyangwei.iknow.module.ai.support.ConfidenceEvaluator;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 import tools.jackson.databind.ObjectMapper;
 
 import java.util.List;
@@ -50,20 +53,23 @@ public class ChatSessionService {
         return session;
     }
 
-    public PageResult<QaSession> listSessions(Long userId, long page, long size) {
+    public PageResult<ChatSessionResponse> listSessions(Long userId, long page, long size) {
         Page<QaSession> result = sessionMapper.selectPage(new Page<>(page, size),
                 new LambdaQueryWrapper<QaSession>()
                         .eq(QaSession::getUserId, userId)
                         .orderByDesc(QaSession::getUpdatedAt));
         return PageResult.of(result.getTotal(), result.getCurrent(), result.getSize(), result.getPages(),
-                result.getRecords());
+                result.getRecords().stream().map(ChatSessionResponse::from).toList());
     }
 
-    public List<QaMessage> listMessages(Long sessionId, Long userId) {
+    public List<ChatMessageResponse> listMessages(Long sessionId, Long userId) {
         requireOwned(sessionId, userId);
         return messageMapper.selectList(new LambdaQueryWrapper<QaMessage>()
                 .eq(QaMessage::getSessionId, sessionId)
-                .orderByAsc(QaMessage::getCreatedAt));
+                .orderByAsc(QaMessage::getCreatedAt))
+                .stream()
+                .map(message -> ChatMessageResponse.from(message, deserializeSources(message.getSources())))
+                .toList();
     }
 
     @Transactional
@@ -111,6 +117,17 @@ public class ChatSessionService {
             return objectMapper.writeValueAsString(citations);
         } catch (Exception e) {
             return "[]";
+        }
+    }
+
+    private List<Citation> deserializeSources(String sources) {
+        if (!StringUtils.hasText(sources)) {
+            return List.of();
+        }
+        try {
+            return List.of(objectMapper.readValue(sources, Citation[].class));
+        } catch (Exception e) {
+            return List.of();
         }
     }
 

@@ -8,6 +8,7 @@ import com.huangyangwei.iknow.module.ai.support.DeterministicChatModel;
 import org.springframework.ai.anthropic.AnthropicChatModel;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.deepseek.DeepSeekChatModel;
+import org.springframework.ai.deepseek.DeepSeekChatOptions;
 import org.springframework.ai.deepseek.api.DeepSeekApi;
 import org.springframework.ai.google.genai.GoogleGenAiChatModel;
 import org.springframework.ai.model.tool.DefaultToolCallingManager;
@@ -75,14 +76,17 @@ public class ModelConfig {
     }
 
     @Bean
-    public ChatClient deepseekChatClient(@Value("${DEEPSEEK_API_KEY:}") String apiKey,
-                                         @Value("${DEEPSEEK_BASE_URL:https://api.deepseek.com}") String baseUrl) {
+    public ChatClient deepseekChatClient(@Value("${spring.ai.deepseek.api-key:}") String apiKey,
+                                         @Value("${spring.ai.deepseek.base-url:https://api.deepseek.com}") String baseUrl,
+                                         @Value("${spring.ai.deepseek.chat.options.model:deepseek-v4-flash}") String modelName) {
         if (apiKey == null || apiKey.isBlank()) {
             return null;
         }
         DeepSeekApi deepSeekApi = DeepSeekApi.builder().baseUrl(baseUrl).apiKey(apiKey).build();
         DeepSeekChatModel model = DeepSeekChatModel.builder().deepSeekApi(deepSeekApi).build();
-        return ChatClient.builder(model).build();
+        return ChatClient.builder(model)
+                .defaultOptions(DeepSeekChatOptions.builder().model(modelName))
+                .build();
     }
 
     @Bean
@@ -96,7 +100,7 @@ public class ModelConfig {
         keyByBean.put("claudeChatClient", ChatModels.CLAUDE_OPUS_5);
         keyByBean.put("gptChatClient", ChatModels.GPT_4O);
         keyByBean.put("geminiChatClient", ChatModels.GEMINI_2_5_PRO);
-        keyByBean.put("deepseekChatClient", ChatModels.DEEPSEEK_V3);
+        keyByBean.put("deepseekChatClient", ChatModels.DEEPSEEK_V4_FLASH);
 
         Map<String, ChatClient> registry = new LinkedHashMap<>();
         for (Map.Entry<String, ChatClient> entry : chatClients.entrySet()) {
@@ -116,7 +120,7 @@ public class ModelConfig {
         infoByKey.put(ChatModels.CLAUDE_OPUS_5, new ModelInfo(ChatModels.CLAUDE_OPUS_5, "Claude Opus 5", "Anthropic 旗舰模型（OpenAI 兼容协议）"));
         infoByKey.put(ChatModels.GPT_4O, new ModelInfo(ChatModels.GPT_4O, "GPT-4o", "OpenAI 多模态旗舰"));
         infoByKey.put(ChatModels.GEMINI_2_5_PRO, new ModelInfo(ChatModels.GEMINI_2_5_PRO, "Gemini 2.5 Pro", "Google 旗舰长上下文模型"));
-        infoByKey.put(ChatModels.DEEPSEEK_V3, new ModelInfo(ChatModels.DEEPSEEK_V3, "DeepSeek V3", "高性价比开源模型"));
+        infoByKey.put(ChatModels.DEEPSEEK_V4_FLASH, new ModelInfo(ChatModels.DEEPSEEK_V4_FLASH, "DeepSeek V4", "高性价比开源模型"));
         infoByKey.put(ChatModels.DETERMINISTIC, new ModelInfo(ChatModels.DETERMINISTIC, "本地确定性模型", "沙箱演示桩：无外部 API，返回固定模板回答（验证链路用）"));
 
         List<ModelInfo> models = infoByKey.values().stream()

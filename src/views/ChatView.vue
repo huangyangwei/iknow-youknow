@@ -48,9 +48,13 @@ async function handleRetry(id: string): Promise<void> {
 
 const handledAutoAsk = ref(false)
 
+function routeSessionId(value: unknown): string | null {
+  return typeof value === 'string' && value ? value : null
+}
+
 onMounted(async () => {
   await Promise.all([chat.loadModels(), chat.loadSessions()]).catch(() => {})
-  const sessionId = Number(route.params.sessionId)
+  const sessionId = routeSessionId(route.params.sessionId)
   if (sessionId) {
     await chat.openSession(sessionId).catch(() => {})
   }
@@ -70,7 +74,7 @@ onMounted(async () => {
 watch(
   () => chat.activeSessionId,
   (id) => {
-    const current = Number(route.params.sessionId)
+    const current = routeSessionId(route.params.sessionId)
     if (id && id !== current) {
       void router.replace({ name: 'chat', params: { sessionId: id } })
     } else if (id == null && current) {
@@ -82,7 +86,7 @@ watch(
 watch(
   () => route.params.sessionId,
   async (id) => {
-    const sessionId = Number(id)
+    const sessionId = routeSessionId(id)
     if (sessionId && sessionId !== chat.activeSessionId) {
       await chat.openSession(sessionId).catch(() => {})
       scrollToBottom()

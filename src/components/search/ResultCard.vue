@@ -21,18 +21,18 @@ function open() {
   <article class="result-card" @click="open">
     <div class="result-head">
       <h3 class="result-title" v-html="highlightText(result.title, keyword ?? '')"></h3>
-      <span v-if="result.status === 'archived'" class="status-tag archived">已归档</span>
+      <span v-if="result.knowledgeType" class="status-tag archived">{{ result.knowledgeType }}</span>
     </div>
-    <p class="result-excerpt" v-html="highlightText(result.excerpt, keyword ?? '')"></p>
+    <p class="result-excerpt" v-html="highlightText(result.summary ?? '', keyword ?? '')"></p>
     <div class="result-meta">
-      <span v-if="result.categoryPath" class="meta-item">📁 {{ result.categoryPath }}</span>
-      <span v-if="result.score != null" class="meta-item">
+      <span v-if="result.categoryName" class="meta-item">📁 {{ result.categoryName }}</span>
+      <span v-if="result.rank != null" class="meta-item">
         相关度
-        <span class="score-bar"><span class="score-fill" :style="{ width: `${Math.round(result.score * 100)}%` }"></span></span>
-        {{ Math.round(result.score * 100) }}%
+        <span class="score-bar"><span class="score-fill" :style="{ width: `${Math.round(result.rank * 100)}%` }"></span></span>
+        {{ Math.round(result.rank * 100) }}%
       </span>
       <span v-if="result.viewCount != null" class="meta-item">👁 {{ result.viewCount }}</span>
-      <span class="meta-item">更新于 {{ formatDate(result.updatedAt) }}</span>
+      <span v-if="result.publishTime" class="meta-item">发布于 {{ formatDate(result.publishTime) }}</span>
     </div>
     <div v-if="result.tags?.length" class="result-tags">
       <span v-for="tag in result.tags.slice(0, 4)" :key="tag" class="tag-chip"># {{ tag }}</span>
