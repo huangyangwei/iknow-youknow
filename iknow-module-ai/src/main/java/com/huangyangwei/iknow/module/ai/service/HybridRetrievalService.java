@@ -1,9 +1,12 @@
 package com.huangyangwei.iknow.module.ai.service;
 
 import com.huangyangwei.iknow.common.constant.Constants;
+import com.huangyangwei.iknow.module.ai.config.RagProperties;
 import com.huangyangwei.iknow.module.ai.mapper.FtsHit;
 import com.huangyangwei.iknow.module.ai.mapper.KbFtsMapper;
+import com.huangyangwei.iknow.module.ai.retrieval.HybridCandidateRetriever;
 import com.huangyangwei.iknow.module.ai.support.Citation;
+import com.huangyangwei.iknow.module.ai.support.RetrievalCandidate;
 import com.huangyangwei.iknow.module.ai.support.RrfMerger;
 import com.huangyangwei.iknow.module.knowledge.entity.KbKnowledge;
 import com.huangyangwei.iknow.module.knowledge.mapper.KbKnowledgeMapper;
@@ -15,9 +18,7 @@ import org.springframework.ai.vectorstore.VectorStore;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,11 +41,16 @@ public class HybridRetrievalService {
     private final VectorStore vectorStore;
     private final KbFtsMapper ftsMapper;
     private final KbKnowledgeMapper knowledgeMapper;
+    private final RagProperties properties;
+    private final HybridCandidateRetriever candidateRetriever;
 
-    public HybridRetrievalService(VectorStore vectorStore, KbFtsMapper ftsMapper, KbKnowledgeMapper knowledgeMapper) {
+    public HybridRetrievalService(VectorStore vectorStore, KbFtsMapper ftsMapper, KbKnowledgeMapper knowledgeMapper,
+                                  RagProperties properties, HybridCandidateRetriever candidateRetriever) {
         this.vectorStore = vectorStore;
         this.ftsMapper = ftsMapper;
         this.knowledgeMapper = knowledgeMapper;
+        this.properties = properties;
+        this.candidateRetriever = candidateRetriever;
     }
 
     /** RRF 融合后的引用列表（默认 TopN=6，限 5~8）。 */
@@ -53,6 +59,16 @@ public class HybridRetrievalService {
             return List.of();
         }
         int n = Math.max(5, Math.min(8, topN));
+
+        if (properties.getEnhanced().isEnabled()) {
+            List<Citation> enhanced = candidateRetriever.retrieve(question).stream()
+                    .limit(n)
+                    .map(this::toCitation)
+                    .toList();
+            if (!enhanced.isEmpty()) {
+                return enhanced;
+            }
+        }
 
         List<VectorHit> vectorHits = vectorRetrieve(question);
         List<FtsHit> ftsHits = ftsRetrieve(question);
@@ -73,6 +89,13 @@ public class HybridRetrievalService {
             }
         }
         return citations;
+    }
+
+    private Citation toCitation(RetrievalCandidate candidate) {
+        Double score = candidate.vectorScore() == null ? candidate.keywordScore() : candidate.vectorScore();
+        return new Citation(candidate.knowledgeId(), candidate.versionNo(), candidate.title(), candidate.url(),
+                snippet(candidate.text()), score, candidate.chunkIndex(), candidate.source(),
+                candidate.fusionScore(), candidate.rerankScore(), candidate.finalRank());
     }
 
     private List<VectorHit> vectorRetrieve(String question) {

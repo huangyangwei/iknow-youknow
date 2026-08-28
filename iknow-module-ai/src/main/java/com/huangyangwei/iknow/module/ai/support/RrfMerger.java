@@ -25,13 +25,38 @@ public final class RrfMerger {
             }
             for (int i = 0; i < ranked.size(); i++) {
                 T item = ranked.get(i);
-                scores.merge(item, 1.0 / (K + i + 1), Double::sum);
+                scores.merge(item, score(i, 1.0, K), Double::sum);
             }
         }
+        return sort(scores);
+    }
+
+    public static <T> List<Ranked<T>> mergeWeighted(List<WeightedRankedList<T>> rankedLists, int rrfK) {
+        Map<T, Double> scores = new LinkedHashMap<>();
+        for (WeightedRankedList<T> ranked : rankedLists) {
+            if (ranked == null || ranked.items() == null || ranked.weight() <= 0) {
+                continue;
+            }
+            for (int i = 0; i < ranked.items().size(); i++) {
+                T item = ranked.items().get(i);
+                scores.merge(item, score(i, ranked.weight(), rrfK), Double::sum);
+            }
+        }
+        return sort(scores);
+    }
+
+    public static double score(int zeroBasedRank, double weight, int rrfK) {
+        return weight / (Math.max(1, rrfK) + zeroBasedRank + 1.0);
+    }
+
+    private static <T> List<Ranked<T>> sort(Map<T, Double> scores) {
         List<Ranked<T>> result = new ArrayList<>(scores.size());
         scores.forEach((item, score) -> result.add(new Ranked<>(item, score)));
         result.sort((a, b) -> Double.compare(b.score(), a.score()));
         return result;
+    }
+
+    public record WeightedRankedList<T>(List<T> items, double weight) {
     }
 
     public record Ranked<T>(T item, double score) {
