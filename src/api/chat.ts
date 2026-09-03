@@ -16,12 +16,23 @@ export interface StreamMeta {
   confidence?: ConfidenceLevel
 }
 
+export interface StreamStart {
+  sessionId?: string
+}
+
 export interface StreamDone {
   sessionId?: string
   cursor?: string
+  answer?: string
+  model?: string
+  modelName?: string
+  confidence?: ConfidenceLevel
+  confidenceScore?: number
+  sources?: ChatSource[]
 }
 
 export interface StreamHandlers {
+  onStart?: (event: StreamStart) => void
   onToken: (token: string) => void
   onCitation: (citation: ChatSource) => void
   onMeta: (meta: StreamMeta) => void
@@ -56,6 +67,10 @@ function normalizeSources(value: unknown): ChatSource[] | undefined {
   }
 }
 
+function isConfidenceLevel(value: unknown): value is ConfidenceLevel {
+  return value === 'high' || value === 'medium' || value === 'low'
+}
+
 function normalizeMessage(message: ChatMessage): ChatMessage {
   return {
     ...message,
@@ -65,46 +80,107 @@ function normalizeMessage(message: ChatMessage): ChatMessage {
   }
 }
 
+interface ParsedFrame {
+  event?: string
+  data: string
+}
+
+function parseFrame(frame: string): ParsedFrame | undefined {
+  const data: string[] = []
+  let event: string | undefined
+
+  for (const rawLine of frame.split(/\r?\n/)) {
+    const line = rawLine.trimEnd()
+    if (line.startsWith('event:')) {
+      event = line.slice(6).trim()
+      continue
+    }
+    if (line.startsWith('data:')) {
+      data.push(line.slice(5).trimStart())
+    }
+  }
+
+  if (!data.length) return undefined
+  return { event, data: data.join('\n') }
+}
+
+function readTextField(payload: unknown, fields: string[]): string {
+  if (typeof payload === 'string') return payload
+  if (payload == null || typeof payload !== 'object') return ''
+
+  const record = payload as Record<string, unknown>
+  for (const field of fields) {
+    const value = record[field]
+    if (typeof value === 'string') return value
+  }
+  return ''
+}
+
+function normalizeMeta(payload: unknown): StreamMeta {
+  if (payload == null || typeof payload !== 'object') return {}
+  const record = payload as Record<string, unknown>
+  return {
+    model: typeof record.modelName === 'string' ? record.modelName : typeof record.model === 'string' ? record.model : undefined,
+    confidence: isConfidenceLevel(record.confidence) ? record.confidence : undefined,
+  }
+}
+
+function normalizeDone(payload: unknown): StreamDone {
+  if (payload == null || typeof payload !== 'object') return {}
+
+  const record = payload as Record<string, unknown>
+  return {
+    sessionId: toId(record.sessionId),
+    cursor: typeof record.cursor === 'string' ? record.cursor : undefined,
+    answer: typeof record.answer === 'string' ? record.answer : undefined,
+    model: typeof record.model === 'string' ? record.model : undefined,
+    modelName: typeof record.modelName === 'string' ? record.modelName : undefined,
+    confidence: isConfidenceLevel(record.confidence) ? record.confidence : undefined,
+    confidenceScore: typeof record.confidenceScore === 'number' ? record.confidenceScore : undefined,
+    sources: normalizeSources(record.sources),
+  }
+}
+
 /**
  * 解析单个 SSE frame（`event:` / `data:`），分发到 handlers；fatal 表示该帧终止流。
  * 兼容无 `event:` 行的帧：优先取 data JSON 内的 `type` 字段，缺省按 token 处理，
  * 避免后端以 `data:` 单行帧推送时事件被静默丢弃。
  */
 function dispatchFrame(frame: string, handlers: StreamHandlers, fatal: () => void): void {
-  const dataLine = frame.match(/^data:\s*(.+)$/m)?.[1]
-  if (dataLine == null) return
-
-  const event = frame.match(/^event:\s*(.+)$/m)?.[1] ?? ''
+  const parsedFrame = parseFrame(frame)
+  if (!parsedFrame) return
 
   let payload: unknown
   try {
-    payload = safeJson.parse(dataLine)
+    payload = safeJson.parse(parsedFrame.data)
   } catch {
     // 纯文本数据帧：兼容后端直接推送 token 文本的实现
-    if (dataLine.trim()) handlers.onToken(dataLine)
+    if (parsedFrame.data.trim()) handlers.onToken(parsedFrame.data)
     return
   }
 
-  const type = event || (payload as { type?: string }).type || 'token'
+  const payloadType = typeof payload === 'object' && payload != null ? (payload as { type?: string }).type : undefined
+  const eventType = parsedFrame.event && parsedFrame.event !== 'message' ? parsedFrame.event : undefined
+  const type = payloadType || eventType || 'token'
 
   switch (type) {
     case 'token':
-      handlers.onToken((payload as { token?: string }).token ?? '')
+      handlers.onToken(readTextField(payload, ['token', 'content', 'delta']))
       break
     case 'delta':
-      handlers.onToken((payload as { content?: string }).content ?? '')
+      handlers.onToken(readTextField(payload, ['content', 'delta', 'token']))
       break
     case 'start':
-      // SSE start 事件携带 sessionId，与 done 中的一致，此处可忽略或预存
+      handlers.onStart?.({ sessionId: toId((payload as { sessionId?: unknown }).sessionId) })
       break
     case 'citation':
       handlers.onCitation(payload as ChatSource)
       break
     case 'meta':
-      handlers.onMeta(payload as StreamMeta)
+      handlers.onMeta(normalizeMeta(payload))
       break
     case 'done':
-      handlers.onDone({ ...(payload as StreamDone), sessionId: toId((payload as StreamDone).sessionId) })
+      handlers.onDone(normalizeDone(payload))
       break
     case 'error':
       handlers.onError((payload as { message?: string }).message ?? '服务异常')
@@ -162,7 +238,7 @@ export async function streamAnswer(payload: AskPayload, signal: AbortSignal, han
     const { value, done } = await reader.read()
     if (done) break
     buffer += decoder.decode(value, { stream: true })
-    const frames = buffer.split('\n\n')
+    const frames = buffer.split(/\r?\n\r?\n/)
     buffer = frames.pop() ?? ''
     for (const frame of frames) {
       dispatchFrame(frame, handlers, () => {

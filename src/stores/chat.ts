@@ -2,7 +2,7 @@ import { computed, ref } from 'vue'
 import { defineStore } from 'pinia'
 import { chatApi, streamAnswer } from '@/api/chat'
 import { ApiError } from '@/api/http'
-import type { ChatContextMessage, ChatMessage, ChatSession, ModelOption } from '@/types/api'
+import type { ChatContextMessage, ChatMessage, ChatSession, ChatSource, ModelOption } from '@/types/api'
 
 export const MODELS: ModelOption[] = [
   { key: 'claude', name: 'Claude Opus 5', desc: '最深度推理，适合复杂问题', dot: 'claude' },
@@ -16,6 +16,13 @@ const CONTEXT_TURNS = 8
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
+}
+
+function appendSource(message: ChatMessage, source: ChatSource): void {
+  message.sources = message.sources ?? []
+  if (!message.sources.some((item) => item.knowledgeId === source.knowledgeId && item.title === source.title)) {
+    message.sources.push(source)
+  }
 }
 
 export const useChatStore = defineStore('chat', () => {
@@ -125,14 +132,17 @@ export const useChatStore = defineStore('chat', () => {
         { sessionId: activeSessionId.value, question, model: modelKey.value, messages: context },
         controller.signal,
         {
+          onStart: (event) => {
+            if (event.sessionId) {
+              if (!activeSessionId.value) activeSessionId.value = event.sessionId
+              assistant.sessionId = event.sessionId
+            }
+          },
           onToken: (token) => {
             assistant.content += token
           },
           onCitation: (citation) => {
-            assistant.sources = assistant.sources ?? []
-            if (!assistant.sources.some((s) => s.knowledgeId === citation.knowledgeId && s.title === citation.title)) {
-              assistant.sources.push(citation)
-            }
+            appendSource(assistant, citation)
           },
           onMeta: (meta) => {
             if (meta.model) assistant.model = meta.model
@@ -140,6 +150,11 @@ export const useChatStore = defineStore('chat', () => {
           },
           onDone: (result) => {
             completed = true
+            if (result.answer && !assistant.content) assistant.content = result.answer
+            if (result.modelName) assistant.model = result.modelName
+            else if (result.model) assistant.model = result.model
+            if (result.confidence) assistant.confidence = result.confidence
+            for (const source of result.sources ?? []) appendSource(assistant, source)
             if (result.sessionId) {
               if (!activeSessionId.value) activeSessionId.value = result.sessionId
               assistant.sessionId = result.sessionId
