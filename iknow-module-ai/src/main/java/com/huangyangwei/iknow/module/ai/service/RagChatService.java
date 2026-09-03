@@ -115,8 +115,12 @@ public class RagChatService {
                 done
         ).onErrorResume(e -> {
             // W3：原始异常（含驱动/DB 细节）只记服务端日志，SSE 客户端只收通用提示。
-            log.error("RAG 问答流式处理失败, model={}, sessionId={}, question={}",
-                    modelKey, session.getId(), request.question(), e);
+            // 日志脱敏（HYW-30）：异常路径不输出完整用户 question，仅输出长度与截断为前 50 字符的前缀，保住排障可用性。
+            String question = request.question();
+            String questionPrefix = question == null ? ""
+                    : question.substring(0, Math.min(50, question.length())) + (question.length() > 50 ? "…" : "");
+            log.error("RAG 问答流式处理失败, model={}, sessionId={}, questionLength={}, questionPrefix={}",
+                    modelKey, session.getId(), question == null ? -1 : question.length(), questionPrefix, e);
             return Flux.just(ChatSseEvent.error("生成回答失败，请稍后重试"));
         });
     }
