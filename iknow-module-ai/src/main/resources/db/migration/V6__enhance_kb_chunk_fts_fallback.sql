@@ -56,6 +56,17 @@ BEGIN
         $ddl$;
     END IF;
 
+    -- 回填存量 kb_chunk 行的 search_tsv（覆盖 NULL 与旧值）：本迁移之前的行不会触发上面的
+    -- trigger（仅 INSERT / UPDATE OF content 触发），不回填则 c.search_tsv @@ kb_fts_query(...)
+    -- 永远匹配不到历史已发布内容，chunk FTS 静默漏召回。
+    -- 与 trigger 相同的 kb_knowledge_tsv('', content) 口径；UPDATE 幂等，
+    -- IS DISTINCT FROM 过滤已正确的行，重复执行（可重放）为 no-op。
+    EXECUTE $ddl$
+    UPDATE kb_chunk
+    SET search_tsv = kb_knowledge_tsv('', content)
+    WHERE search_tsv IS DISTINCT FROM kb_knowledge_tsv('', content)
+    $ddl$;
+
     EXECUTE $ddl$CREATE INDEX IF NOT EXISTS idx_kb_chunk_tsv_gin ON kb_chunk USING GIN (search_tsv)$ddl$;
 
     IF EXISTS (
