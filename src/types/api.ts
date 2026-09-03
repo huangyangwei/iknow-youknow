@@ -128,7 +128,14 @@ export interface ChatSource {
   title: string
   url?: string
   categoryPath?: string
+  content?: string
+  snippet?: string
   chunkText?: string
+  chunkIndex?: number
+  source?: string
+  fusionScore?: number
+  rerankScore?: number
+  finalRank?: number
 }
 
 export interface ChatMessage {
