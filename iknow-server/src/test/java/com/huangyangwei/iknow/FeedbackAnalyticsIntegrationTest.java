@@ -32,6 +32,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 class FeedbackAnalyticsIntegrationTest {
 
+    private static final long MEMBER_USER_ID = 999L;
+
     @LocalServerPort
     private int port;
 
@@ -105,10 +107,18 @@ class FeedbackAnalyticsIntegrationTest {
         return UUID.randomUUID().toString().replace("-", "").substring(0, 8);
     }
 
+    private String memberToken() {
+        jdbcTemplate.update("INSERT INTO sys_user (id, username, email, password, nickname, status) "
+                        + "VALUES (?, ?, ?, ?, ?, 1) ON CONFLICT (id) DO NOTHING",
+                MEMBER_USER_ID, "member" + MEMBER_USER_ID, "member" + MEMBER_USER_ID + "@iknow.ai",
+                "test-password", "member");
+        return jwtUtil.generate(MEMBER_USER_ID, "member", List.of("MEMBER"), List.of());
+    }
+
     @Test
     void feedbackClosedLoopSubmitFilterHandleNotify() throws Exception {
         String admin = login();
-        String member = jwtUtil.generate(999L, "member", List.of("MEMBER"), List.of());
+        String member = memberToken();
 
         // 1. 提交赞/踩/纠错
         long likeId = jsonId(post("/api/feedback",
@@ -186,7 +196,7 @@ class FeedbackAnalyticsIntegrationTest {
         jdbcTemplate.update("DELETE FROM sys_notification");
         jdbcTemplate.update("DELETE FROM fb_feedback");
         String admin = login();
-        String member = jwtUtil.generate(999L, "member", List.of("MEMBER"), List.of());
+        String member = memberToken();
 
         // 构造 2 like + 1 dislike + 1 correction
         post("/api/feedback", "{\"type\":\"like\",\"question\":\"q1\"}", member);

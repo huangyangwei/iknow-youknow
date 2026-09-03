@@ -4,6 +4,7 @@ dist
 
 # Maven build output
 target/
+.m2/
 
 # Spike 运行时基础设施（本地 PostgreSQL 数据目录，不入库）
 .spike-pg/

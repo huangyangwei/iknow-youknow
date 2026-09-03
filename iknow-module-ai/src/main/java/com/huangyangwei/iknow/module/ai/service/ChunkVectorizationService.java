@@ -5,9 +5,13 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.ai.document.Document;
 import org.springframework.ai.vectorstore.VectorStore;
+import org.springframework.jdbc.core.BatchPreparedStatementSetter;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import tools.jackson.databind.ObjectMapper;
 
+import java.sql.PreparedStatement;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -27,11 +31,14 @@ public class ChunkVectorizationService {
     private final VectorStore vectorStore;
     private final ChunkTextSplitter splitter;
     private final JdbcTemplate jdbcTemplate;
+    private final ObjectMapper objectMapper;
 
-    public ChunkVectorizationService(VectorStore vectorStore, ChunkTextSplitter splitter, JdbcTemplate jdbcTemplate) {
+    public ChunkVectorizationService(VectorStore vectorStore, ChunkTextSplitter splitter, JdbcTemplate jdbcTemplate,
+                                     ObjectMapper objectMapper) {
         this.vectorStore = vectorStore;
         this.splitter = splitter;
         this.jdbcTemplate = jdbcTemplate;
+        this.objectMapper = objectMapper;
     }
 
     /** 重建某知识的向量块：删除旧块后按当前版本重新切分+嵌入。 */
@@ -42,25 +49,62 @@ public class ChunkVectorizationService {
             if (chunks.isEmpty()) {
                 return;
             }
-            List<Document> docs = new ArrayList<>(chunks.size());
-            for (int i = 0; i < chunks.size(); i++) {
-                Map<String, Object> metadata = new LinkedHashMap<>();
-                metadata.put("knowledgeId", knowledgeId);
-                metadata.put("versionNo", versionNo);
-                metadata.put("chunkIndex", i);
-                metadata.put("title", title == null ? "" : title);
-                docs.add(Document.builder()
-                        .id(knowledgeId + "-" + versionNo + "-" + i)
-                        .text(chunks.get(i))
-                        .metadata(metadata)
-                        .build());
+            List<Document> docs = documents(knowledgeId, versionNo, title, chunks);
+            try {
+                vectorStore.add(docs);
+                log.info("vectorized knowledge {} version {} -> {} chunks", knowledgeId, versionNo, chunks.size());
+            } catch (Exception e) {
+                log.warn("vector write failed for knowledge {} version {}, falling back to text chunks: {}",
+                        knowledgeId, versionNo, e.getMessage());
+                upsertTextChunks(docs);
             }
-            log.info("SILICONFLOW_API_KEY: {}", System.getenv("SILICONFLOW_API_KEY"));
-            log.info("vectorizing knowledge {} version {} chunks {}", knowledgeId, versionNo, docs);
-            vectorStore.add(docs);
-            log.info("vectorized knowledge {} version {} -> {} chunks", knowledgeId, versionNo, chunks.size());
         } catch (Exception e) {
             log.error("vectorize knowledge {} version {} skipped: {}", knowledgeId, versionNo, e.getMessage(),e);
+        }
+    }
+
+    private List<Document> documents(Long knowledgeId, Integer versionNo, String title, List<String> chunks) {
+        List<Document> docs = new ArrayList<>(chunks.size());
+        for (int i = 0; i < chunks.size(); i++) {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("knowledgeId", knowledgeId);
+            metadata.put("versionNo", versionNo);
+            metadata.put("chunkIndex", i);
+            metadata.put("title", title == null ? "" : title);
+            docs.add(Document.builder()
+                    .id(knowledgeId + "-" + versionNo + "-" + i)
+                    .text(chunks.get(i))
+                    .metadata(metadata)
+                    .build());
+        }
+        return docs;
+    }
+
+    private void upsertTextChunks(List<Document> docs) {
+        try {
+            jdbcTemplate.batchUpdate("INSERT INTO kb_chunk (id, content, metadata) VALUES (?, ?, CAST(? AS json)) "
+                    + "ON CONFLICT (id) DO UPDATE SET content = EXCLUDED.content, metadata = EXCLUDED.metadata",
+                    new BatchPreparedStatementSetter() {
+                        @Override
+                        public void setValues(PreparedStatement ps, int i) throws SQLException {
+                            Document doc = docs.get(i);
+                            ps.setString(1, doc.getId());
+                            ps.setString(2, doc.getText());
+                            try {
+                                ps.setString(3, objectMapper.writeValueAsString(doc.getMetadata()));
+                            } catch (Exception e) {
+                                throw new SQLException("serialize chunk metadata failed", e);
+                            }
+                        }
+
+                        @Override
+                        public int getBatchSize() {
+                            return docs.size();
+                        }
+                    });
+            log.info("upserted {} text chunks for keyword-only retrieval", docs.size());
+        } catch (Exception e) {
+            log.warn("text chunk fallback skipped: {}", e.getMessage());
         }
     }
 

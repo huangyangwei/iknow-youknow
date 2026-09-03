@@ -1,10 +1,13 @@
 package com.huangyangwei.iknow;
 
 import com.huangyangwei.iknow.common.util.JwtUtil;
+import com.huangyangwei.iknow.module.ai.mapper.KbChunkFtsHit;
+import com.huangyangwei.iknow.module.ai.mapper.KbChunkFtsMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.web.server.LocalServerPort;
+import org.springframework.jdbc.core.JdbcTemplate;
 import tools.jackson.databind.JsonNode;
 import tools.jackson.databind.ObjectMapper;
 
@@ -40,6 +43,12 @@ class AiModuleIntegrationTest {
 
     @Autowired
     private ObjectMapper objectMapper;
+
+    @Autowired
+    private KbChunkFtsMapper chunkFtsMapper;
+
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     private final HttpClient client = HttpClient.newBuilder()
             .connectTimeout(Duration.ofSeconds(15))
@@ -177,6 +186,11 @@ class AiModuleIntegrationTest {
         JsonNode firstSource = done.path("sources").get(0);
         assertEquals(knowledgeId, firstSource.path("knowledgeId").asLong());
         assertEquals("RAG 演示词条", firstSource.path("title").asText());
+        assertTrue(firstSource.path("chunkIndex").canConvertToInt(), "source should expose chunkIndex: " + firstSource);
+        assertTrue(List.of("keyword", "vector", "both").contains(firstSource.path("source").asText()),
+                "source channel should be exposed: " + firstSource);
+        assertTrue(firstSource.path("fusionScore").isNumber(), "source should expose fusionScore: " + firstSource);
+        assertEquals(1, firstSource.path("finalRank").asInt(), "first source should expose finalRank");
 
         // 二轮追问：前端以字符串 sessionId 回传，必须继续落在同一会话且不能触发 401。
         HttpRequest followUpRequest = HttpRequest.newBuilder()
@@ -230,6 +244,8 @@ class AiModuleIntegrationTest {
                     for (JsonNode source : persistedSources) {
                         if (source.path("knowledgeId").asLong() == knowledgeId) {
                             sawAssistantWithCitation = true;
+                            assertTrue(source.path("finalRank").canConvertToInt(),
+                                    "persisted sources should keep finalRank: " + source);
                         }
                     }
                 }
@@ -238,6 +254,26 @@ class AiModuleIntegrationTest {
         assertTrue(sawUser && sawFollowUpUser && sawAssistant,
                 "first/follow-up user and assistant messages must be persisted");
         assertTrue(sawAssistantWithCitation, "assistant sources should persist citation: " + messagesBody);
+    }
+
+    @Test
+    void chunkFtsSearchesChunksAndFiltersUnpublishedKnowledge() throws Exception {
+        String token = login();
+        String keyword = "chunkfts" + UUID.randomUUID().toString().replace("-", "").substring(0, 8);
+        String html = "<p>chunk level fts regression token " + keyword + "</p>";
+        long knowledgeId = jsonId(post("/api/knowledge",
+                "{\"title\":\"Chunk FTS Regression\",\"htmlContent\":\"" + html + "\"}", token));
+        String publishBody = post("/api/knowledge/" + knowledgeId + "/publish", "{}", token);
+        assertTrue(publishBody.contains("\"code\":0"), publishBody);
+
+        List<KbChunkFtsHit> hits = chunkFtsMapper.searchPublishedChunks(keyword, 10);
+        assertTrue(hits.stream().anyMatch(hit -> knowledgeId == hit.getKnowledgeId()),
+                "published chunk FTS should return the published knowledge: " + hits.size());
+
+        jdbcTemplate.update("UPDATE kb_knowledge SET status = 'draft' WHERE id = ?", knowledgeId);
+        List<KbChunkFtsHit> draftHits = chunkFtsMapper.searchPublishedChunks(keyword, 10);
+        assertFalse(draftHits.stream().anyMatch(hit -> knowledgeId == hit.getKnowledgeId()),
+                "chunk FTS must filter unpublished knowledge");
     }
 
     @Test

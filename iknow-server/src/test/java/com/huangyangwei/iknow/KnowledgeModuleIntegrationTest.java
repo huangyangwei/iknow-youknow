@@ -120,17 +120,19 @@ class KnowledgeModuleIntegrationTest {
     @Test
     void categoryTagKnowledgePublishSearchVersionRollback() throws Exception {
         String token = login();
+        String categoryName = "技术文档" + randomSuffix();
+        String tagName = "检索" + randomSuffix();
 
         // 分类 + 标签
         long categoryId = jsonId(post("/api/categories",
-                "{\"parentId\":0,\"name\":\"技术文档\",\"productLine\":\"RAG\",\"sort\":1}", token));
-        long tagId = jsonId(post("/api/tags", "{\"name\":\"检索\"}", token));
+                "{\"parentId\":0,\"name\":\"" + categoryName + "\",\"productLine\":\"RAG\",\"sort\":1}", token));
+        long tagId = jsonId(post("/api/tags", "{\"name\":\"" + tagName + "\"}", token));
         assertTrue(categoryId > 0 && tagId > 0);
 
         // 分类树可读（所有角色），且包含新分类
         String treeBody = get("/api/categories", token);
         assertTrue(treeBody.contains("\"code\":0"), treeBody);
-        assertTrue(treeBody.contains("技术文档"), treeBody);
+        assertTrue(treeBody.contains(categoryName), treeBody);
 
         // 创建知识（草稿）：双通道 html_content + 自动生成 plain_text
         String tokenWord = "quantum" + randomSuffix();
@@ -153,8 +155,8 @@ class KnowledgeModuleIntegrationTest {
         assertTrue(detailPublished.contains("\"status\":\"published\""), detailPublished);
         assertTrue(detailPublished.contains("\"versionNo\":1"), detailPublished);
         assertTrue(detailPublished.contains("\"publishTime\""), detailPublished);
-        assertTrue(detailPublished.contains("\"categoryName\":\"技术文档\""), detailPublished);
-        assertTrue(detailPublished.contains("\"tags\":[\"检索\"]"), detailPublished);
+        assertTrue(detailPublished.contains("\"categoryName\":\"" + categoryName + "\""), detailPublished);
+        assertTrue(detailPublished.contains("\"tags\":[\"" + tagName + "\"]"), detailPublished);
 
         assertEquals(1, ftsCount(tokenWord), "FTS should match published content");
         String listBody = get("/api/knowledge?keyword=" + tokenWord, token);
@@ -232,7 +234,8 @@ class KnowledgeModuleIntegrationTest {
     @Test
     void importMarkdownAndHtmlThenExportBackup() throws Exception {
         String token = login();
-        long categoryId = jsonId(post("/api/categories", "{\"name\":\"导入分类\"}", token));
+        String categoryName = "导入分类" + randomSuffix();
+        long categoryId = jsonId(post("/api/categories", "{\"name\":\"" + categoryName + "\"}", token));
 
         String markdown = "# 导入标题\n\n这是一段 Markdown 内容\n\n| A | B |\n|---|---|\n| 1 | 2 |\n";
         String html = "<h1>HTML 导入</h1><p>一段 HTML 内容 importword" + randomSuffix() + "</p>";
